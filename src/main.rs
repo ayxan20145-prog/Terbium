@@ -1,4 +1,4 @@
-enum Tokens {
+enum Token {
     Let,
     Name(String),
     Equals,
@@ -6,4 +6,19 @@ enum Tokens {
     Semicolon,
     Eof,
 }
-fn main() {}
+struct Lexer {
+    source: Vec<char>,
+    position: usize,
+}
+
+impl Lexer {
+    fn new(source: &str) -> Self {
+        Self {
+            source: source.chars().collect(),
+            position: 0,
+        }
+    }
+}
+fn main() {
+    let lexer = Lexer::new("let x = 5;");
+}
