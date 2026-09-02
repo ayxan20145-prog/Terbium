@@ -7,8 +7,14 @@ enum Token {
     Semicolon,
     Eof,
 }
+
 struct Lexer {
     source: Vec<char>,
+    position: usize,
+}
+
+struct Parser {
+    tokens: Vec<Token>,
     position: usize,
 }
 
@@ -118,10 +124,19 @@ impl Lexer {
         tokens
     }
 }
+
+impl Parser {
+    fn new(tokens: Vec<Token>) -> Self {
+        Self {
+            tokens,
+            position: 0,
+        }
+    }
+}
 fn main() {
     let mut lexer = Lexer::new("let x = 5;");
 
     let tokens = lexer.tokenize();
 
-    println!("{:?}", tokens);
+    let parser = Parser::new(tokens);
 }
