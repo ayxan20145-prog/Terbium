@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Token {
     Let,
     Name(String),
@@ -132,11 +132,16 @@ impl Parser {
             position: 0,
         }
     }
+    fn current(&self) -> Token {
+        self.tokens[self.position].clone()
+    }
 }
+
 fn main() {
     let mut lexer = Lexer::new("let x = 5;");
 
     let tokens = lexer.tokenize();
 
     let parser = Parser::new(tokens);
+    println!("{:?}", parser.current());
 }
