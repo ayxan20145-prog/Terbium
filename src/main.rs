@@ -1,3 +1,9 @@
-fn main() {
-    println!("Hello, world!");
+enum Tokens {
+    Let,
+    Name(String),
+    Equals,
+    Value(i64),
+    Semicolon,
+    Eof,
 }
+fn main() {}
