@@ -21,8 +21,13 @@ impl Lexer {
     fn current(&self) -> Option<char> {
         self.source.get(self.position).copied()
     }
+    fn advance(&mut self) {
+        self.position += 1;
+    }
 }
 fn main() {
-    let lexer = Lexer::new("let x = 5;");
+    let mut lexer = Lexer::new("let x = 5;");
+    println!("{:?}", lexer.current());
+    lexer.advance();
     println!("{:?}", lexer.current());
 }
