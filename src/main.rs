@@ -8,6 +8,7 @@ enum Token {
     Eof,
 }
 
+#[derive(Debug)]
 enum Statement {
     Let { name: String, value: i64 },
 }
@@ -20,6 +21,11 @@ struct Lexer {
 struct Parser {
     tokens: Vec<Token>,
     position: usize,
+}
+
+#[derive(Debug)]
+struct Program {
+    statements: Vec<Statement>,
 }
 
 impl Lexer {
@@ -176,21 +182,25 @@ impl Parser {
 
         Statement::Let { name, value }
     }
+    fn parse_program(&mut self) -> Program {
+        let mut statements = Vec::new();
+
+        while self.current() != Token::Eof {
+            statements.push(self.parse_statement());
+        }
+
+        Program { statements }
+    }
 }
 
 fn main() {
-    let mut lexer = Lexer::new("let x = 5;");
+    let mut lexer = Lexer::new("let x = 5; let y = 10;");
 
     let tokens = lexer.tokenize();
 
     let mut parser = Parser::new(tokens);
 
-    let statement = parser.parse_statement();
+    let program = parser.parse_program();
 
-    match statement {
-        Statement::Let { name, value } => {
-            println!("name = {}", name);
-            println!("value = {}", value);
-        }
-    }
+    println!("{:#?}", program);
 }
