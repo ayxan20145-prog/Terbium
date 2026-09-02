@@ -8,6 +8,10 @@ enum Token {
     Eof,
 }
 
+enum Statement {
+    Let { name: String, value: i64 },
+}
+
 struct Lexer {
     source: Vec<char>,
     position: usize,
@@ -138,6 +142,40 @@ impl Parser {
     fn advance(&mut self) {
         self.position += 1;
     }
+    fn parse_statement(&mut self) -> Statement {
+        match self.current() {
+            Token::Let => self.advance(),
+            _ => panic!("expected 'let'"),
+        }
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Equals => self.advance(),
+            _ => panic!("expected '='"),
+        }
+
+        let value = match self.current() {
+            Token::Value(value) => {
+                self.advance();
+                value
+            }
+            _ => panic!("expected value"),
+        };
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Let { name, value }
+    }
 }
 
 fn main() {
@@ -146,7 +184,13 @@ fn main() {
     let tokens = lexer.tokenize();
 
     let mut parser = Parser::new(tokens);
-    println!("{:?}", parser.current());
-    parser.advance();
-    println!("{:?}", parser.current());
+
+    let statement = parser.parse_statement();
+
+    match statement {
+        Statement::Let { name, value } => {
+            println!("name = {}", name);
+            println!("value = {}", value);
+        }
+    }
 }
