@@ -1,3 +1,5 @@
+use std::{env, fs};
+
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
     Let,
@@ -194,7 +196,14 @@ impl Parser {
 }
 
 fn main() {
-    let mut lexer = Lexer::new("let x = 5; let y = 10;");
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        println!("usage: terbc <PATH>");
+        return;
+    }
+
+    let content = fs::read_to_string(&args[1]).expect("Failed to read program");
+    let mut lexer = Lexer::new(&content);
 
     let tokens = lexer.tokenize();
 
