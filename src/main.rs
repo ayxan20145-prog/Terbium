@@ -211,5 +211,22 @@ fn main() {
 
     let program = parser.parse_program();
 
-    println!("{:#?}", program);
+    let bytecode = compile(&program);
+
+    fs::write("program.tbc", bytecode).expect("Failed to write bytecode");
+}
+
+fn compile(program: &Program) -> String {
+    let mut bytecode = String::new();
+
+    for statement in &program.statements {
+        match statement {
+            Statement::Let { name, value } => {
+                bytecode.push_str(&format!("push {}\n", value));
+                bytecode.push_str(&format!("store {}\n", name));
+            }
+        }
+    }
+
+    bytecode
 }
