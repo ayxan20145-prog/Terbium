@@ -135,6 +135,9 @@ impl Parser {
     fn current(&self) -> Token {
         self.tokens[self.position].clone()
     }
+    fn advance(&mut self) {
+        self.position += 1;
+    }
 }
 
 fn main() {
@@ -142,6 +145,8 @@ fn main() {
 
     let tokens = lexer.tokenize();
 
-    let parser = Parser::new(tokens);
+    let mut parser = Parser::new(tokens);
+    println!("{:?}", parser.current());
+    parser.advance();
     println!("{:?}", parser.current());
 }
