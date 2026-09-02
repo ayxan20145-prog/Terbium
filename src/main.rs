@@ -101,16 +101,27 @@ impl Lexer {
             }
         }
     }
+    fn tokenize(&mut self) -> Vec<Token> {
+        let mut tokens = Vec::new();
+
+        loop {
+            let token = self.next_token();
+
+            if token == Token::Eof {
+                tokens.push(Token::Eof);
+                break;
+            }
+
+            tokens.push(token);
+        }
+
+        tokens
+    }
 }
 fn main() {
     let mut lexer = Lexer::new("let x = 5;");
 
-    loop {
-        let token = lexer.next_token();
-        println!("{:?}", token);
+    let tokens = lexer.tokenize();
 
-        if token == Token::Eof {
-            break;
-        }
-    }
+    println!("{:?}", tokens);
 }
