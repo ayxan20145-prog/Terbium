@@ -8,6 +8,7 @@ enum Token {
     Value(Value),
 
     Print,
+    Println,
     LParen,
     RParen,
 
@@ -19,6 +20,7 @@ enum Token {
 enum Statement {
     Decleration { name: String, value: Value },
     Print { value: Value },
+    Println { value: Value },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -185,6 +187,8 @@ impl Lexer {
                     Token::Type(Type::String)
                 } else if name == "print" {
                     Token::Print
+                } else if name == "println" {
+                    Token::Println
                 } else {
                     Token::Name(name)
                 }
@@ -232,6 +236,7 @@ impl Parser {
             Token::Type(Type::Float) => self.parse_decleration(),
             Token::Type(Type::String) => self.parse_decleration(),
             Token::Print => self.parse_print(),
+            Token::Println => self.parse_println(),
             _ => panic!("expected statement"),
         }
     }
@@ -320,6 +325,37 @@ impl Parser {
 
         Statement::Print { value }
     }
+    fn parse_println(&mut self) -> Statement {
+        match self.current() {
+            Token::Println => self.advance(),
+            _ => panic!("expected 'println'"),
+        }
+
+        match self.current() {
+            Token::LParen => self.advance(),
+            _ => panic!("expected '('"),
+        }
+
+        let value = match self.current() {
+            Token::Value(value) => {
+                self.advance();
+                value
+            }
+            _ => panic!("expected value"),
+        };
+
+        match self.current() {
+            Token::RParen => self.advance(),
+            _ => panic!("expected ')'"),
+        }
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Println { value }
+    }
 }
 
 fn main() {
@@ -371,6 +407,19 @@ fn compile(program: &Program) -> String {
                 }
 
                 bytecode.push_str(&format!("print\n"));
+            }
+            Statement::Println { value } => {
+                match value {
+                    Value::String(value) => {
+                        bytecode.push_str(&format!("pushstr {}\n", value));
+                    }
+                    _ => {
+                        bytecode.push_str(&format!("push {}\n", value));
+                    }
+                }
+
+                bytecode.push_str(&format!("print\n"));
+                bytecode.push_str(&format!("println\n"));
             }
         }
     }
