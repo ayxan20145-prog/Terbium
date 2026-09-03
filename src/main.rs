@@ -194,6 +194,23 @@ impl Lexer {
                 }
             }
 
+            Some('#') => {
+                loop {
+                    match self.current() {
+                        Some(c) => {
+                            if c == '\n' {
+                                break;
+                            }
+
+                            self.advance();
+                        }
+                        None => break,
+                    }
+                }
+
+                self.next_token()
+            }
+
             Some(c) => {
                 panic!("unexpected char: {}", c);
             }
