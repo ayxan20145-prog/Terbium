@@ -25,12 +25,14 @@ enum Statement {
 enum Type {
     Int,
     Float,
+    String,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 enum Value {
     Int(i32),
     Float(f64),
+    String(String),
 }
 
 struct Lexer {
@@ -53,6 +55,7 @@ impl fmt::Display for Value {
         match self {
             Value::Int(value) => write!(f, "{}", value),
             Value::Float(value) => write!(f, "{}", value),
+            Value::String(value) => write!(f, "{}", value),
         }
     }
 }
@@ -133,6 +136,30 @@ impl Lexer {
                 }
             }
 
+            Some('"') => {
+                self.advance();
+
+                let mut string = String::new();
+
+                loop {
+                    match self.current() {
+                        Some('"') => {
+                            self.advance();
+                            break;
+                        }
+
+                        Some(c) => {
+                            string.push(c);
+                            self.advance();
+                        }
+
+                        None => panic!("unclosed string"),
+                    }
+                }
+
+                Token::Value(Value::String(string))
+            }
+
             Some(c) if c.is_alphabetic() => {
                 let mut name = String::new();
 
@@ -154,6 +181,8 @@ impl Lexer {
                     Token::Type(Type::Int)
                 } else if name == "float" {
                     Token::Type(Type::Float)
+                } else if name == "string" {
+                    Token::Type(Type::String)
                 } else if name == "print" {
                     Token::Print
                 } else {
@@ -201,6 +230,7 @@ impl Parser {
         match self.current() {
             Token::Type(Type::Int) => self.parse_decleration(),
             Token::Type(Type::Float) => self.parse_decleration(),
+            Token::Type(Type::String) => self.parse_decleration(),
             Token::Print => self.parse_print(),
             _ => panic!("expected statement"),
         }
@@ -248,6 +278,7 @@ impl Parser {
         match (&typee, &value) {
             (Type::Int, Value::Int(_)) => {}
             (Type::Float, Value::Float(_)) => {}
+            (Type::String, Value::String(_)) => {}
             _ => panic!("type mismatch"),
         }
 
@@ -318,11 +349,27 @@ fn compile(program: &Program) -> String {
     for statement in &program.statements {
         match statement {
             Statement::Decleration { name, value } => {
-                bytecode.push_str(&format!("push {}\n", value));
+                match value {
+                    Value::String(value) => {
+                        bytecode.push_str(&format!("pushstr {}\n", value));
+                    }
+                    _ => {
+                        bytecode.push_str(&format!("push {}\n", value));
+                    }
+                }
+
                 bytecode.push_str(&format!("store {}\n", name));
             }
             Statement::Print { value } => {
-                bytecode.push_str(&format!("push {}\n", value));
+                match value {
+                    Value::String(value) => {
+                        bytecode.push_str(&format!("pushstr {}\n", value));
+                    }
+                    _ => {
+                        bytecode.push_str(&format!("push {}\n", value));
+                    }
+                }
+
                 bytecode.push_str(&format!("print\n"));
             }
         }
