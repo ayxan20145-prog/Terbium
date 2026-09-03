@@ -1,11 +1,11 @@
-use std::{env, fs};
+use std::{env, fmt, fs};
 
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
     Type(Type),
     Name(String),
     Equals,
-    Value(i64),
+    Value(Value),
 
     Print,
     LParen,
@@ -17,13 +17,20 @@ enum Token {
 
 #[derive(Debug)]
 enum Statement {
-    Decleration { name: String, value: i64 },
-    Print { value: i64 },
+    Decleration { name: String, value: Value },
+    Print { value: Value },
 }
 
 #[derive(Debug, PartialEq, Clone)]
 enum Type {
     Int,
+    Float,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum Value {
+    Int(i32),
+    Float(f64),
 }
 
 struct Lexer {
@@ -41,6 +48,14 @@ struct Program {
     statements: Vec<Statement>,
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Value::Int(value) => write!(f, "{}", value),
+            Value::Float(value) => write!(f, "{}", value),
+        }
+    }
+}
 impl Lexer {
     fn new(source: &str) -> Self {
         Self {
@@ -92,22 +107,30 @@ impl Lexer {
 
             Some(c) if c.is_ascii_digit() => {
                 let mut number = String::new();
+                let mut is_float = false;
 
                 loop {
                     match self.current() {
-                        Some(c) => {
-                            if c.is_ascii_digit() {
-                                number.push(c);
-                                self.advance();
-                            } else {
-                                break;
-                            }
+                        Some(c) if c.is_ascii_digit() => {
+                            number.push(c);
+                            self.advance();
                         }
-                        None => break,
+
+                        Some('.') if !is_float => {
+                            is_float = true;
+                            number.push('.');
+                            self.advance();
+                        }
+
+                        _ => break,
                     }
                 }
 
-                Token::Value(number.parse().unwrap())
+                if is_float {
+                    Token::Value(Value::Float(number.parse().unwrap()))
+                } else {
+                    Token::Value(Value::Int(number.parse().unwrap()))
+                }
             }
 
             Some(c) if c.is_alphabetic() => {
@@ -129,6 +152,8 @@ impl Lexer {
 
                 if name == "int" {
                     Token::Type(Type::Int)
+                } else if name == "float" {
+                    Token::Type(Type::Float)
                 } else if name == "print" {
                     Token::Print
                 } else {
@@ -175,6 +200,7 @@ impl Parser {
     fn parse_statement(&mut self) -> Statement {
         match self.current() {
             Token::Type(Type::Int) => self.parse_decleration(),
+            Token::Type(Type::Float) => self.parse_decleration(),
             Token::Print => self.parse_print(),
             _ => panic!("expected statement"),
         }
@@ -189,10 +215,14 @@ impl Parser {
         Program { statements }
     }
     fn parse_decleration(&mut self) -> Statement {
-        match self.current() {
-            Token::Type(Type::Int) => self.advance(),
+        // rust doesnt let me use type as a variable name :(
+        let typee = match self.current() {
+            Token::Type(typee) => {
+                self.advance();
+                typee
+            }
             _ => panic!("expected type"),
-        }
+        };
 
         let name = match self.current() {
             Token::Name(name) => {
@@ -214,6 +244,12 @@ impl Parser {
             }
             _ => panic!("expected value"),
         };
+
+        match (&typee, &value) {
+            (Type::Int, Value::Int(_)) => {}
+            (Type::Float, Value::Float(_)) => {}
+            _ => panic!("type mismatch"),
+        }
 
         match self.current() {
             Token::Semicolon => self.advance(),
