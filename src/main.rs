@@ -2,7 +2,7 @@ use std::{env, fs};
 
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
-    Let,
+    Type(Type),
     Name(String),
     Equals,
     Value(i64),
@@ -17,8 +17,13 @@ enum Token {
 
 #[derive(Debug)]
 enum Statement {
-    Let { name: String, value: i64 },
+    Decleration { name: String, value: i64 },
     Print { value: i64 },
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum Type {
+    Int,
 }
 
 struct Lexer {
@@ -122,8 +127,8 @@ impl Lexer {
                     }
                 }
 
-                if name == "let" {
-                    Token::Let
+                if name == "int" {
+                    Token::Type(Type::Int)
                 } else if name == "print" {
                     Token::Print
                 } else {
@@ -169,7 +174,7 @@ impl Parser {
     }
     fn parse_statement(&mut self) -> Statement {
         match self.current() {
-            Token::Let => self.parse_let(),
+            Token::Type(Type::Int) => self.parse_decleration(),
             Token::Print => self.parse_print(),
             _ => panic!("expected statement"),
         }
@@ -183,10 +188,10 @@ impl Parser {
 
         Program { statements }
     }
-    fn parse_let(&mut self) -> Statement {
+    fn parse_decleration(&mut self) -> Statement {
         match self.current() {
-            Token::Let => self.advance(),
-            _ => panic!("expected 'let'"),
+            Token::Type(Type::Int) => self.advance(),
+            _ => panic!("expected type"),
         }
 
         let name = match self.current() {
@@ -215,7 +220,7 @@ impl Parser {
             _ => panic!("expected ';'"),
         }
 
-        Statement::Let { name, value }
+        Statement::Decleration { name, value }
     }
     fn parse_print(&mut self) -> Statement {
         match self.current() {
@@ -276,7 +281,7 @@ fn compile(program: &Program) -> String {
 
     for statement in &program.statements {
         match statement {
-            Statement::Let { name, value } => {
+            Statement::Decleration { name, value } => {
                 bytecode.push_str(&format!("push {}\n", value));
                 bytecode.push_str(&format!("store {}\n", name));
             }
