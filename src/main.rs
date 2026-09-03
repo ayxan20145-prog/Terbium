@@ -1,4 +1,14 @@
-use std::{env, fmt, fs};
+use clap::Parser as ClapParser;
+use std::{fmt, fs};
+
+#[derive(ClapParser, Debug)]
+#[command(name = "terbc", version, about = "Terbium bytecode compiler")]
+struct Cli {
+    input: String,
+
+    #[arg(short = 'o', long, default_value = "program.tbc")]
+    output: String,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
@@ -376,13 +386,10 @@ impl Parser {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        println!("usage: terbc <PATH>");
-        return;
-    }
+    let args = Cli::parse();
 
-    let content = fs::read_to_string(&args[1]).expect("Failed to read program");
+    let content = fs::read_to_string(&args.input).expect("Failed to read program");
+
     let mut lexer = Lexer::new(&content);
 
     let tokens = lexer.tokenize();
@@ -393,7 +400,7 @@ fn main() {
 
     let bytecode = compile(&program);
 
-    fs::write("program.tbc", bytecode).expect("Failed to write bytecode");
+    fs::write(&args.output, bytecode).expect("Failed to write bytecode");
 }
 
 fn compile(program: &Program) -> String {
