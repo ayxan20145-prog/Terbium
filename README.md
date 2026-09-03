@@ -6,7 +6,6 @@ a bytecode compiler written in rust
 Requirements:
 - `rust`
 - `cargo make`
-- `TVM (optional for running the bytecode)`
 
 ```bash
 git clone https://github.com/ayxan20145-prog/Terbium
@@ -18,4 +17,10 @@ cargo make install
 
 ```bash
 cargo make uninstall
+```
+
+## Compile
+
+```bash
+terbc <FILE>
 ```
