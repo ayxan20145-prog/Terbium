@@ -6,6 +6,11 @@ enum Token {
     Name(String),
     Equals,
     Value(i64),
+
+    Print,
+    LParen,
+    RParen,
+
     Semicolon,
     Eof,
 }
@@ -13,6 +18,7 @@ enum Token {
 #[derive(Debug)]
 enum Statement {
     Let { name: String, value: i64 },
+    Print { value: i64 },
 }
 
 struct Lexer {
@@ -70,6 +76,15 @@ impl Lexer {
                 Token::Semicolon
             }
 
+            Some('(') => {
+                self.advance();
+                Token::LParen
+            }
+            Some(')') => {
+                self.advance();
+                Token::RParen
+            }
+
             Some(c) if c.is_ascii_digit() => {
                 let mut number = String::new();
 
@@ -109,6 +124,8 @@ impl Lexer {
 
                 if name == "let" {
                     Token::Let
+                } else if name == "print" {
+                    Token::Print
                 } else {
                     Token::Name(name)
                 }
@@ -152,6 +169,22 @@ impl Parser {
     }
     fn parse_statement(&mut self) -> Statement {
         match self.current() {
+            Token::Let => self.parse_let(),
+            Token::Print => self.parse_print(),
+            _ => panic!("expected statement"),
+        }
+    }
+    fn parse_program(&mut self) -> Program {
+        let mut statements = Vec::new();
+
+        while self.current() != Token::Eof {
+            statements.push(self.parse_statement());
+        }
+
+        Program { statements }
+    }
+    fn parse_let(&mut self) -> Statement {
+        match self.current() {
             Token::Let => self.advance(),
             _ => panic!("expected 'let'"),
         }
@@ -184,14 +217,36 @@ impl Parser {
 
         Statement::Let { name, value }
     }
-    fn parse_program(&mut self) -> Program {
-        let mut statements = Vec::new();
-
-        while self.current() != Token::Eof {
-            statements.push(self.parse_statement());
+    fn parse_print(&mut self) -> Statement {
+        match self.current() {
+            Token::Print => self.advance(),
+            _ => panic!("expected 'print'"),
         }
 
-        Program { statements }
+        match self.current() {
+            Token::LParen => self.advance(),
+            _ => panic!("expected '('"),
+        }
+
+        let value = match self.current() {
+            Token::Value(value) => {
+                self.advance();
+                value
+            }
+            _ => panic!("expected value"),
+        };
+
+        match self.current() {
+            Token::RParen => self.advance(),
+            _ => panic!("expected ')'"),
+        }
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Print { value }
     }
 }
 
@@ -224,6 +279,10 @@ fn compile(program: &Program) -> String {
             Statement::Let { name, value } => {
                 bytecode.push_str(&format!("push {}\n", value));
                 bytecode.push_str(&format!("store {}\n", name));
+            }
+            Statement::Print { value } => {
+                bytecode.push_str(&format!("push {}\n", value));
+                bytecode.push_str(&format!("print\n"));
             }
         }
     }
