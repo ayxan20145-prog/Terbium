@@ -22,15 +22,20 @@ enum Token {
     LParen,
     RParen,
 
+    Plus,
+    Minus,
+    Star,
+    Slash,
+
     Semicolon,
     Eof,
 }
 
 #[derive(Debug)]
 enum Statement {
-    Decleration { name: String, value: Value },
-    Print { value: Value },
-    Println { value: Value },
+    Decleration { name: String, value: Expression },
+    Print { value: Expression },
+    Println { value: Expression },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -45,6 +50,12 @@ enum Value {
     Int(i32),
     Float(f64),
     String(String),
+}
+
+#[derive(Debug)]
+enum Expression {
+    Value(Value),
+    Operation(Value, Token, Value),
 }
 
 struct Lexer {
@@ -221,6 +232,23 @@ impl Lexer {
                 self.next_token()
             }
 
+            Some('+') => {
+                self.advance();
+                Token::Plus
+            }
+            Some('-') => {
+                self.advance();
+                Token::Minus
+            }
+            Some('*') => {
+                self.advance();
+                Token::Star
+            }
+            Some('/') => {
+                self.advance();
+                Token::Slash
+            }
+
             Some(c) => {
                 panic!("unexpected char: {}", c);
             }
@@ -299,18 +327,16 @@ impl Parser {
             _ => panic!("expected '='"),
         }
 
-        let value = match self.current() {
-            Token::Value(value) => {
-                self.advance();
-                value
-            }
-            _ => panic!("expected value"),
-        };
+        let value = self.parse_expression();
 
         match (&typee, &value) {
-            (Type::Int, Value::Int(_)) => {}
-            (Type::Float, Value::Float(_)) => {}
-            (Type::String, Value::String(_)) => {}
+            (Type::Int, Expression::Value(Value::Int(_))) => {}
+            (Type::Float, Expression::Value(Value::Float(_))) => {}
+            (Type::String, Expression::Value(Value::String(_))) => {}
+
+            (Type::Int, Expression::Operation(Value::Int(_), _, Value::Int(_))) => {}
+            (Type::Float, Expression::Operation(Value::Float(_), _, Value::Float(_))) => {}
+
             _ => panic!("type mismatch"),
         }
 
@@ -332,13 +358,7 @@ impl Parser {
             _ => panic!("expected '('"),
         }
 
-        let value = match self.current() {
-            Token::Value(value) => {
-                self.advance();
-                value
-            }
-            _ => panic!("expected value"),
-        };
+        let value = self.parse_expression();
 
         match self.current() {
             Token::RParen => self.advance(),
@@ -363,13 +383,7 @@ impl Parser {
             _ => panic!("expected '('"),
         }
 
-        let value = match self.current() {
-            Token::Value(value) => {
-                self.advance();
-                value
-            }
-            _ => panic!("expected value"),
-        };
+        let value = self.parse_expression();
 
         match self.current() {
             Token::RParen => self.advance(),
@@ -382,6 +396,33 @@ impl Parser {
         }
 
         Statement::Println { value }
+    }
+    fn parse_expression(&mut self) -> Expression {
+        let left = match self.current() {
+            Token::Value(value) => {
+                self.advance();
+                value
+            }
+            _ => panic!("expected value"),
+        };
+
+        match self.current() {
+            Token::Plus | Token::Minus | Token::Star | Token::Slash => {
+                let op = self.current();
+                self.advance();
+
+                let right = match self.current() {
+                    Token::Value(value) => {
+                        self.advance();
+                        value
+                    }
+                    _ => panic!("expected value"),
+                };
+
+                Expression::Operation(left, op, right)
+            }
+            _ => Expression::Value(left),
+        }
     }
 }
 
@@ -409,44 +450,47 @@ fn compile(program: &Program) -> String {
     for statement in &program.statements {
         match statement {
             Statement::Decleration { name, value } => {
-                match value {
-                    Value::String(value) => {
-                        bytecode.push_str(&format!("pushstr {}\n", value));
-                    }
-                    _ => {
-                        bytecode.push_str(&format!("push {}\n", value));
-                    }
-                }
-
+                bytecode.push_str(&compile_expression(value));
                 bytecode.push_str(&format!("store {}\n", name));
             }
             Statement::Print { value } => {
-                match value {
-                    Value::String(value) => {
-                        bytecode.push_str(&format!("pushstr {}\n", value));
-                    }
-                    _ => {
-                        bytecode.push_str(&format!("push {}\n", value));
-                    }
-                }
-
-                bytecode.push_str(&format!("print\n"));
+                bytecode.push_str(&compile_expression(value));
+                bytecode.push_str("print\n");
             }
             Statement::Println { value } => {
-                match value {
-                    Value::String(value) => {
-                        bytecode.push_str(&format!("pushstr {}\n", value));
-                    }
-                    _ => {
-                        bytecode.push_str(&format!("push {}\n", value));
-                    }
-                }
-
-                bytecode.push_str(&format!("print\n"));
-                bytecode.push_str(&format!("println\n"));
+                bytecode.push_str(&compile_expression(value));
+                bytecode.push_str("print\n");
+                bytecode.push_str("println\n");
             }
         }
     }
 
     bytecode
+}
+fn compile_value(value: &Value) -> String {
+    match value {
+        Value::String(value) => format!("pushstr {}\n", value),
+        _ => format!("push {}\n", value),
+    }
+}
+fn compile_expression(expression: &Expression) -> String {
+    match expression {
+        Expression::Value(value) => compile_value(value),
+        Expression::Operation(left, op, right) => {
+            let mut bytecode = String::new();
+
+            bytecode.push_str(&compile_value(left));
+            bytecode.push_str(&compile_value(right));
+
+            match op {
+                Token::Plus => bytecode.push_str("add\n"),
+                Token::Minus => bytecode.push_str("sub\n"),
+                Token::Star => bytecode.push_str("mul\n"),
+                Token::Slash => bytecode.push_str("div\n"),
+                _ => panic!("invalid operator"),
+            }
+
+            bytecode
+        }
+    }
 }
