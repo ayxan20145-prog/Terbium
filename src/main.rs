@@ -56,6 +56,7 @@ enum Value {
 enum Expression {
     Value(Value),
     Operation(Value, Token, Value),
+    Variable(String),
 }
 
 struct Lexer {
@@ -401,7 +402,12 @@ impl Parser {
         let left = match self.current() {
             Token::Value(value) => {
                 self.advance();
-                value
+                Expression::Value(value)
+            }
+
+            Token::Name(name) => {
+                self.advance();
+                Expression::Variable(name)
             }
             _ => panic!("expected value"),
         };
@@ -419,9 +425,15 @@ impl Parser {
                     _ => panic!("expected value"),
                 };
 
-                Expression::Operation(left, op, right)
+                match left {
+                    Expression::Value(value) => Expression::Operation(value, op, right),
+                    Expression::Variable(_) => {
+                        panic!("operations with variables not supported yet :(")
+                    }
+                    _ => panic!("error message"),
+                }
             }
-            _ => Expression::Value(left),
+            _ => left,
         }
     }
 }
@@ -476,6 +488,7 @@ fn compile_value(value: &Value) -> String {
 fn compile_expression(expression: &Expression) -> String {
     match expression {
         Expression::Value(value) => compile_value(value),
+        Expression::Variable(name) => format!("load {}\n", name),
         Expression::Operation(left, op, right) => {
             let mut bytecode = String::new();
 
