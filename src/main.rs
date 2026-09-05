@@ -36,7 +36,7 @@ enum Token {
 #[derive(Debug)]
 enum Statement {
     Decleration { name: String, value: Expression },
-    Output { value: Expression },
+    Output { values: Vec<Expression> },
     Input { name: String, typee: Type },
 }
 
@@ -379,14 +379,21 @@ impl Parser {
         match self.current() {
             Token::Output => {
                 self.advance();
-                let value = self.parse_expression();
+
+                let mut values = Vec::new();
+                values.push(self.parse_expression());
+
+                while self.current() == Token::Output {
+                    self.advance();
+                    values.push(self.parse_expression());
+                }
 
                 match self.current() {
                     Token::Semicolon => self.advance(),
                     _ => panic!("expected ';'"),
                 }
 
-                Statement::Output { value }
+                Statement::Output { values }
             }
             Token::Input => {
                 self.advance();
@@ -484,9 +491,11 @@ fn compile(program: &Program) -> String {
                 bytecode.push_str(&compile_expression(value));
                 bytecode.push_str(&format!("store {}\n", name));
             }
-            Statement::Output { value } => {
-                bytecode.push_str(&compile_expression(value));
-                bytecode.push_str("print\n");
+            Statement::Output { values } => {
+                for value in values {
+                    bytecode.push_str(&compile_expression(value));
+                    bytecode.push_str("print\n");
+                }
             }
             Statement::Input { name, typee } => {
                 bytecode.push_str("read\n");
