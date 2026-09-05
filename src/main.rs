@@ -27,6 +27,7 @@ enum Token {
 
     IO,
     Output,
+    Input,
 
     Semicolon,
     Eof,
@@ -35,7 +36,8 @@ enum Token {
 #[derive(Debug)]
 enum Statement {
     Decleration { name: String, value: Expression },
-    IO { value: Expression },
+    Output { value: Expression },
+    Input { name: String, typee: Type },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -259,6 +261,17 @@ impl Lexer {
                     _ => panic!("expected '>'"),
                 }
             }
+            Some('<') => {
+                self.advance();
+
+                match self.current() {
+                    Some('<') => {
+                        self.advance();
+                        Token::Input
+                    }
+                    _ => panic!("expected '<'"),
+                }
+            }
 
             Some(c) => {
                 panic!("unexpected char: {}", c);
@@ -364,18 +377,45 @@ impl Parser {
         }
 
         match self.current() {
-            Token::Output => self.advance(),
-            _ => panic!("expected '('"),
+            Token::Output => {
+                self.advance();
+                let value = self.parse_expression();
+
+                match self.current() {
+                    Token::Semicolon => self.advance(),
+                    _ => panic!("expected ';'"),
+                }
+
+                Statement::Output { value }
+            }
+            Token::Input => {
+                self.advance();
+
+                let typee = match self.current() {
+                    Token::Type(typee) => {
+                        self.advance();
+                        typee
+                    }
+                    _ => panic!("expected type"),
+                };
+
+                let name = match self.current() {
+                    Token::Name(name) => {
+                        self.advance();
+                        name
+                    }
+                    _ => panic!("expected variable name"),
+                };
+
+                match self.current() {
+                    Token::Semicolon => self.advance(),
+                    _ => panic!("expected ';'"),
+                }
+
+                Statement::Input { name, typee }
+            }
+            _ => panic!("expected '>>' or '<<'"),
         }
-
-        let value = self.parse_expression();
-
-        match self.current() {
-            Token::Semicolon => self.advance(),
-            _ => panic!("expected ';'"),
-        }
-
-        Statement::IO { value }
     }
     fn parse_expression(&mut self) -> Expression {
         let left = match self.current() {
@@ -444,9 +484,22 @@ fn compile(program: &Program) -> String {
                 bytecode.push_str(&compile_expression(value));
                 bytecode.push_str(&format!("store {}\n", name));
             }
-            Statement::IO { value } => {
+            Statement::Output { value } => {
                 bytecode.push_str(&compile_expression(value));
                 bytecode.push_str("print\n");
+            }
+            Statement::Input { name, typee } => {
+                bytecode.push_str("read\n");
+                match typee {
+                    Type::Int => {
+                        bytecode.push_str("stoi\n");
+                    }
+                    Type::Float => {
+                        bytecode.push_str("stof\n");
+                    }
+                    Type::String => {}
+                }
+                bytecode.push_str(&format!("store {}\n", name));
             }
         }
     }
