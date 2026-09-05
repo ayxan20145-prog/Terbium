@@ -17,8 +17,6 @@ enum Token {
     Equals,
     Value(Value),
 
-    Print,
-    Println,
     LParen,
     RParen,
 
@@ -27,6 +25,9 @@ enum Token {
     Star,
     Slash,
 
+    IO,
+    Output,
+
     Semicolon,
     Eof,
 }
@@ -34,8 +35,7 @@ enum Token {
 #[derive(Debug)]
 enum Statement {
     Decleration { name: String, value: Expression },
-    Print { value: Expression },
-    Println { value: Expression },
+    IO { value: Expression },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -207,10 +207,8 @@ impl Lexer {
                     Token::Type(Type::Float)
                 } else if name == "string" {
                     Token::Type(Type::String)
-                } else if name == "print" {
-                    Token::Print
-                } else if name == "println" {
-                    Token::Println
+                } else if name == "IO" {
+                    Token::IO
                 } else {
                     Token::Name(name)
                 }
@@ -248,6 +246,18 @@ impl Lexer {
             Some('/') => {
                 self.advance();
                 Token::Slash
+            }
+
+            Some('>') => {
+                self.advance();
+
+                match self.current() {
+                    Some('>') => {
+                        self.advance();
+                        Token::Output
+                    }
+                    _ => panic!("expected '>'"),
+                }
             }
 
             Some(c) => {
@@ -291,8 +301,7 @@ impl Parser {
             Token::Type(Type::Int) => self.parse_decleration(),
             Token::Type(Type::Float) => self.parse_decleration(),
             Token::Type(Type::String) => self.parse_decleration(),
-            Token::Print => self.parse_print(),
-            Token::Println => self.parse_println(),
+            Token::IO => self.parse_io(),
             _ => panic!("expected statement"),
         }
     }
@@ -348,55 +357,25 @@ impl Parser {
 
         Statement::Decleration { name, value }
     }
-    fn parse_print(&mut self) -> Statement {
+    fn parse_io(&mut self) -> Statement {
         match self.current() {
-            Token::Print => self.advance(),
-            _ => panic!("expected 'print'"),
+            Token::IO => self.advance(),
+            _ => panic!("expected 'IO'"),
         }
 
         match self.current() {
-            Token::LParen => self.advance(),
+            Token::Output => self.advance(),
             _ => panic!("expected '('"),
         }
 
         let value = self.parse_expression();
 
         match self.current() {
-            Token::RParen => self.advance(),
-            _ => panic!("expected ')'"),
-        }
-
-        match self.current() {
             Token::Semicolon => self.advance(),
             _ => panic!("expected ';'"),
         }
 
-        Statement::Print { value }
-    }
-    fn parse_println(&mut self) -> Statement {
-        match self.current() {
-            Token::Println => self.advance(),
-            _ => panic!("expected 'println'"),
-        }
-
-        match self.current() {
-            Token::LParen => self.advance(),
-            _ => panic!("expected '('"),
-        }
-
-        let value = self.parse_expression();
-
-        match self.current() {
-            Token::RParen => self.advance(),
-            _ => panic!("expected ')'"),
-        }
-
-        match self.current() {
-            Token::Semicolon => self.advance(),
-            _ => panic!("expected ';'"),
-        }
-
-        Statement::Println { value }
+        Statement::IO { value }
     }
     fn parse_expression(&mut self) -> Expression {
         let left = match self.current() {
@@ -465,14 +444,9 @@ fn compile(program: &Program) -> String {
                 bytecode.push_str(&compile_expression(value));
                 bytecode.push_str(&format!("store {}\n", name));
             }
-            Statement::Print { value } => {
+            Statement::IO { value } => {
                 bytecode.push_str(&compile_expression(value));
                 bytecode.push_str("print\n");
-            }
-            Statement::Println { value } => {
-                bytecode.push_str(&compile_expression(value));
-                bytecode.push_str("print\n");
-                bytecode.push_str("println\n");
             }
         }
     }
