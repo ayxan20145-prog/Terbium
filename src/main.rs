@@ -45,6 +45,7 @@ enum Type {
     Int,
     Float,
     String,
+    Bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -52,6 +53,7 @@ enum Value {
     Int(i32),
     Float(f64),
     String(String),
+    Bool(bool),
 }
 
 #[derive(Debug)]
@@ -82,6 +84,7 @@ impl fmt::Display for Value {
             Value::Int(value) => write!(f, "{}", value),
             Value::Float(value) => write!(f, "{}", value),
             Value::String(value) => write!(f, "{}", value),
+            Value::Bool(value) => write!(f, "{}", value),
         }
     }
 }
@@ -209,6 +212,10 @@ impl Lexer {
                     Token::Type(Type::Float)
                 } else if name == "string" {
                     Token::Type(Type::String)
+                } else if name == "bool" {
+                    Token::Type(Type::Bool)
+                } else if name == "true" || name == "false" {
+                    Token::Value(Value::Bool(name.parse().unwrap()))
                 } else if name == "IO" {
                     Token::IO
                 } else {
@@ -314,6 +321,7 @@ impl Parser {
             Token::Type(Type::Int) => self.parse_decleration(),
             Token::Type(Type::Float) => self.parse_decleration(),
             Token::Type(Type::String) => self.parse_decleration(),
+            Token::Type(Type::Bool) => self.parse_decleration(),
             Token::IO => self.parse_io(),
             _ => panic!("expected statement"),
         }
@@ -356,6 +364,7 @@ impl Parser {
             (Type::Int, Expression::Value(Value::Int(_))) => {}
             (Type::Float, Expression::Value(Value::Float(_))) => {}
             (Type::String, Expression::Value(Value::String(_))) => {}
+            (Type::Bool, Expression::Value(Value::Bool(_))) => {}
 
             (Type::Int, Expression::Operation(Value::Int(_), _, Value::Int(_))) => {}
             (Type::Float, Expression::Operation(Value::Float(_), _, Value::Float(_))) => {}
@@ -507,6 +516,9 @@ fn compile(program: &Program) -> String {
                         bytecode.push_str("stof\n");
                     }
                     Type::String => {}
+                    Type::Bool => {
+                        bytecode.push_str("stob\n");
+                    }
                 }
                 bytecode.push_str(&format!("store {}\n", name));
             }
@@ -518,6 +530,7 @@ fn compile(program: &Program) -> String {
 fn compile_value(value: &Value) -> String {
     match value {
         Value::String(value) => format!("pushstr {}\n", value),
+        Value::Bool(value) => format!("pushbool {}\n", value),
         _ => format!("push {}\n", value),
     }
 }
