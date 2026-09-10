@@ -29,6 +29,8 @@ enum Token {
     Output,
     Input,
 
+    Import,
+
     Semicolon,
     Eof,
 }
@@ -38,6 +40,7 @@ enum Statement {
     Decleration { name: String, value: Expression },
     Output { values: Vec<Expression> },
     Input { name: String, typee: Type },
+    Import { name: String },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -218,6 +221,8 @@ impl Lexer {
                     Token::Value(Value::Bool(name.parse().unwrap()))
                 } else if name == "IO" {
                     Token::IO
+                } else if name == "import" {
+                    Token::Import
                 } else {
                     Token::Name(name)
                 }
@@ -323,6 +328,7 @@ impl Parser {
             Token::Type(Type::String) => self.parse_decleration(),
             Token::Type(Type::Bool) => self.parse_decleration(),
             Token::IO => self.parse_io(),
+            Token::Import => self.parse_import(),
             _ => panic!("expected statement"),
         }
     }
@@ -433,6 +439,24 @@ impl Parser {
             _ => panic!("expected '>>' or '<<'"),
         }
     }
+    fn parse_import(&mut self) -> Statement {
+        self.advance();
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Import { name }
+    }
     fn parse_expression(&mut self) -> Expression {
         let left = match self.current() {
             Token::Value(value) => {
@@ -522,6 +546,12 @@ fn compile(program: &Program) -> String {
                 }
                 bytecode.push_str(&format!("store {}\n", name));
             }
+            Statement::Import { name } => match name.as_str() {
+                "math" => {
+                    bytecode.push_str("hi");
+                }
+                _ => panic!("unknown import: {}", name),
+            },
         }
     }
 
