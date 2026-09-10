@@ -1,6 +1,8 @@
 use clap::Parser as ClapParser;
 use std::{fmt, fs};
 
+const STD_MATH: &str = include_str!("../std/math.tbc");
+
 #[derive(ClapParser, Debug)]
 #[command(name = "terbc", version, about = "Terbium bytecode compiler")]
 struct Cli {
@@ -548,7 +550,7 @@ fn compile(program: &Program) -> String {
             }
             Statement::Import { name } => match name.as_str() {
                 "math" => {
-                    bytecode.push_str("hi");
+                    bytecode.push_str(STD_MATH);
                 }
                 _ => panic!("unknown import: {}", name),
             },
