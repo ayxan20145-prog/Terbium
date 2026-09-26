@@ -649,96 +649,80 @@ fn compile(program: &Program) -> String {
     let mut bytecode = String::new();
     let mut label_id = 0;
 
-    for statement in &program.statements {
-        match statement {
-            Statement::Decleration { name, value } => {
-                bytecode.push_str(&compile_expression(value));
-                bytecode.push_str(&format!("store {}\n", name));
-            }
-            Statement::Output { values } => {
-                for value in values {
-                    bytecode.push_str(&compile_expression(value));
-                    bytecode.push_str("print\n");
-                }
-            }
-            Statement::Input { name, typee } => {
-                bytecode.push_str("read\n");
-                match typee {
-                    Type::Int => {
-                        bytecode.push_str("stoi\n");
-                    }
-                    Type::Float => {
-                        bytecode.push_str("stof\n");
-                    }
-                    Type::String => {}
-                    Type::Bool => {
-                        bytecode.push_str("stob\n");
-                    }
-                }
-                bytecode.push_str(&format!("store {}\n", name));
-            }
-            Statement::Import { name } => match name.as_str() {
-                "math" => {
-                    bytecode.push_str(STD_MATH);
-                }
-                _ => panic!("unknown import: {}", name),
-            },
-            Statement::If {
-                condition,
-                body,
-                else_body,
-            } => {
-                let if_label = format!("if_{}", label_id);
-                let else_label = format!("else_{}", label_id);
-                let end_label = format!("end_{}", label_id);
-                label_id += 1;
-
-                bytecode.push_str(&compile_expression(condition));
-
-                bytecode.push_str(&format!("jumpif true {}\n", if_label));
-                bytecode.push_str(&format!("jumpif false {}\n", else_label));
-
-                bytecode.push_str(&format!("label {}\n", if_label));
-
-                for statement in body {
-                    match statement {
-                        Statement::Output { values } => {
-                            for value in values {
-                                bytecode.push_str(&compile_expression(value));
-                                bytecode.push_str("print\n");
-                            }
-                        }
-
-                        _ => panic!("statement not supported in if yet :("),
-                    }
-                }
-
-                bytecode.push_str(&format!("jump {}\n", end_label));
-
-                bytecode.push_str(&format!("label {}\n", else_label));
-
-                if let Some(else_body) = else_body {
-                    for statement in else_body {
-                        match statement {
-                            Statement::Output { values } => {
-                                for value in values {
-                                    bytecode.push_str(&compile_expression(value));
-                                    bytecode.push_str("print\n");
-                                }
-                            }
-
-                            _ => panic!("statement not supported in else yet :("),
-                        }
-                    }
-                    bytecode.push_str(&format!("jump {}\n", end_label));
-                }
-
-                bytecode.push_str(&format!("label {}\n", end_label));
-            }
-        }
-    }
+    compile_statements(&program.statements, &mut bytecode, &mut label_id);
 
     bytecode
+}
+fn compile_statements(statements: &[Statement], bytecode: &mut String, label_id: &mut usize) {
+    for statement in statements {
+        compile_statement(statement, bytecode, label_id);
+    }
+}
+fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mut usize) {
+    match statement {
+        Statement::Decleration { name, value } => {
+            bytecode.push_str(&compile_expression(value));
+            bytecode.push_str(&format!("store {}\n", name));
+        }
+
+        Statement::Output { values } => {
+            for value in values {
+                bytecode.push_str(&compile_expression(value));
+                bytecode.push_str("print\n");
+            }
+        }
+
+        Statement::Input { name, typee } => {
+            bytecode.push_str("read\n");
+
+            match typee {
+                Type::Int => bytecode.push_str("stoi\n"),
+                Type::Float => bytecode.push_str("stof\n"),
+                Type::String => {}
+                Type::Bool => bytecode.push_str("stob\n"),
+            }
+
+            bytecode.push_str(&format!("store {}\n", name));
+        }
+
+        Statement::Import { name } => match name.as_str() {
+            "math" => bytecode.push_str(STD_MATH),
+            _ => panic!("unknown import: {}", name),
+        },
+
+        Statement::If {
+            condition,
+            body,
+            else_body,
+        } => {
+            let if_label = format!("if_{}", *label_id);
+            let else_label = format!("else_{}", *label_id);
+            let end_label = format!("end_{}", *label_id);
+
+            *label_id += 1;
+
+            bytecode.push_str(&compile_expression(condition));
+
+            bytecode.push_str(&format!("jumpif true {}\n", if_label));
+            bytecode.push_str(&format!("jumpif false {}\n", else_label));
+
+            bytecode.push_str(&format!("label {}\n", if_label));
+
+            compile_statements(body, bytecode, label_id);
+
+            bytecode.push_str(&format!("jump {}\n", end_label));
+
+            bytecode.push_str(&format!("label {}\n", else_label));
+
+            if let Some(else_body) = else_body {
+                compile_statements(else_body, bytecode, label_id);
+
+                bytecode.push_str(&format!("jump {}\n", end_label));
+            }
+
+            bytecode.push_str(&format!("label {}\n", end_label));
+        }
+    }
 }
 fn compile_value(value: &Value) -> String {
     match value {
