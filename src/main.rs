@@ -574,7 +574,7 @@ impl Parser {
         }
     }
     fn parse_expression(&mut self) -> Expression {
-        let left = match self.current() {
+        let mut left = match self.current() {
             Token::Value(value) => {
                 self.advance();
                 Expression::Value(value)
@@ -587,37 +587,43 @@ impl Parser {
             _ => panic!("expected value"),
         };
 
-        match self.current() {
-            Token::Plus
-            | Token::Minus
-            | Token::Star
-            | Token::Slash
-            | Token::Less
-            | Token::LessEqual
-            | Token::Greater
-            | Token::GreaterEqual
-            | Token::EqualEqual
-            | Token::NotEqual => {
-                let op = self.current();
-                self.advance();
+        loop {
+            let op = match self.current() {
+                Token::Plus
+                | Token::Minus
+                | Token::Star
+                | Token::Slash
+                | Token::Less
+                | Token::LessEqual
+                | Token::Greater
+                | Token::GreaterEqual
+                | Token::EqualEqual
+                | Token::NotEqual => {
+                    let op = self.current();
+                    self.advance();
+                    op
+                }
 
-                let right = match self.current() {
-                    Token::Value(value) => {
-                        self.advance();
-                        Expression::Value(value)
-                    }
+                _ => break,
+            };
 
-                    Token::Name(name) => {
-                        self.advance();
-                        Expression::Variable(name)
-                    }
-                    _ => panic!("expected value"),
-                };
+            let right = match self.current() {
+                Token::Value(value) => {
+                    self.advance();
+                    Expression::Value(value)
+                }
 
-                Expression::Operation(Box::new(left), op, Box::new(right))
-            }
-            _ => left,
+                Token::Name(name) => {
+                    self.advance();
+                    Expression::Variable(name)
+                }
+                _ => panic!("expected value"),
+            };
+
+            left = Expression::Operation(Box::new(left), op, Box::new(right));
         }
+
+        left
     }
 }
 
