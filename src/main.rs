@@ -30,6 +30,13 @@ enum Token {
     Star,
     Slash,
 
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    EqualEqual,
+    NotEqual,
+
     IO,
     Output,
     Input,
@@ -85,7 +92,7 @@ enum Value {
 #[derive(Debug)]
 enum Expression {
     Value(Value),
-    Operation(Value, Token, Value),
+    Operation(Box<Expression>, Token, Box<Expression>),
     Variable(String),
 }
 
@@ -146,7 +153,14 @@ impl Lexer {
 
             Some('=') => {
                 self.advance();
-                Token::Equals
+
+                match self.current() {
+                    Some('=') => {
+                        self.advance();
+                        Token::EqualEqual
+                    }
+                    _ => Token::Equals,
+                }
             }
 
             Some(';') => {
@@ -302,22 +316,42 @@ impl Lexer {
                 self.advance();
 
                 match self.current() {
+                    Some('=') => {
+                        self.advance();
+                        Token::GreaterEqual
+                    }
                     Some('>') => {
                         self.advance();
                         Token::Output
                     }
-                    _ => panic!("expected '>'"),
+                    _ => Token::Greater,
                 }
             }
             Some('<') => {
                 self.advance();
 
                 match self.current() {
+                    Some('=') => {
+                        self.advance();
+                        Token::LessEqual
+                    }
                     Some('<') => {
                         self.advance();
                         Token::Input
                     }
-                    _ => panic!("expected '<'"),
+                    _ => Token::Less,
+                }
+            }
+
+            Some('!') => {
+                self.advance();
+
+                match self.current() {
+                    Some('=') => {
+                        self.advance();
+                        Token::NotEqual
+                    }
+                    _ => panic!("expected '=' after '!'"),
                 }
             }
 
@@ -409,8 +443,8 @@ impl Parser {
             (Type::String, Expression::Value(Value::String(_))) => {}
             (Type::Bool, Expression::Value(Value::Bool(_))) => {}
 
-            (Type::Int, Expression::Operation(Value::Int(_), _, Value::Int(_))) => {}
-            (Type::Float, Expression::Operation(Value::Float(_), _, Value::Float(_))) => {}
+            (Type::Int, Expression::Operation(_, _, _)) => {}
+            (Type::Float, Expression::Operation(_, _, _)) => {}
 
             _ => panic!("type mismatch"),
         }
@@ -554,25 +588,33 @@ impl Parser {
         };
 
         match self.current() {
-            Token::Plus | Token::Minus | Token::Star | Token::Slash => {
+            Token::Plus
+            | Token::Minus
+            | Token::Star
+            | Token::Slash
+            | Token::Less
+            | Token::LessEqual
+            | Token::Greater
+            | Token::GreaterEqual
+            | Token::EqualEqual
+            | Token::NotEqual => {
                 let op = self.current();
                 self.advance();
 
                 let right = match self.current() {
                     Token::Value(value) => {
                         self.advance();
-                        value
+                        Expression::Value(value)
+                    }
+
+                    Token::Name(name) => {
+                        self.advance();
+                        Expression::Variable(name)
                     }
                     _ => panic!("expected value"),
                 };
 
-                match left {
-                    Expression::Value(value) => Expression::Operation(value, op, right),
-                    Expression::Variable(_) => {
-                        panic!("operations with variables not supported yet :(")
-                    }
-                    _ => panic!("error message"),
-                }
+                Expression::Operation(Box::new(left), op, Box::new(right))
             }
             _ => left,
         }
@@ -642,6 +684,7 @@ fn compile(program: &Program) -> String {
             } => {
                 let if_label = format!("if_{}", label_id);
                 let else_label = format!("else_{}", label_id);
+                let end_label = format!("end_{}", label_id);
                 label_id += 1;
 
                 bytecode.push_str(&compile_expression(condition));
@@ -664,7 +707,7 @@ fn compile(program: &Program) -> String {
                     }
                 }
 
-                bytecode.push_str("ret\n");
+                bytecode.push_str(&format!("jump {}\n", end_label));
 
                 bytecode.push_str(&format!("label {}\n", else_label));
 
@@ -681,9 +724,10 @@ fn compile(program: &Program) -> String {
                             _ => panic!("statement not supported in else yet :("),
                         }
                     }
+                    bytecode.push_str(&format!("jump {}\n", end_label));
                 }
 
-                bytecode.push_str("ret\n");
+                bytecode.push_str(&format!("label {}\n", end_label));
             }
         }
     }
@@ -704,14 +748,22 @@ fn compile_expression(expression: &Expression) -> String {
         Expression::Operation(left, op, right) => {
             let mut bytecode = String::new();
 
-            bytecode.push_str(&compile_value(left));
-            bytecode.push_str(&compile_value(right));
+            bytecode.push_str(&compile_expression(left));
+            bytecode.push_str(&compile_expression(right));
 
             match op {
                 Token::Plus => bytecode.push_str("add\n"),
                 Token::Minus => bytecode.push_str("sub\n"),
                 Token::Star => bytecode.push_str("mul\n"),
                 Token::Slash => bytecode.push_str("div\n"),
+
+                Token::Less => bytecode.push_str("lt\n"),
+                Token::LessEqual => bytecode.push_str("le\n"),
+                Token::Greater => bytecode.push_str("gt\n"),
+                Token::GreaterEqual => bytecode.push_str("ge\n"),
+                Token::EqualEqual => bytecode.push_str("eq\n"),
+                Token::NotEqual => bytecode.push_str("ne\n"),
+
                 _ => panic!("invalid operator"),
             }
 
