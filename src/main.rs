@@ -22,6 +22,9 @@ enum Token {
     LParen,
     RParen,
 
+    LBrace,
+    RBrace,
+
     Plus,
     Minus,
     Star,
@@ -33,16 +36,34 @@ enum Token {
 
     Import,
 
+    If,
+    Else,
+
     Semicolon,
     Eof,
 }
 
 #[derive(Debug)]
 enum Statement {
-    Decleration { name: String, value: Expression },
-    Output { values: Vec<Expression> },
-    Input { name: String, typee: Type },
-    Import { name: String },
+    Decleration {
+        name: String,
+        value: Expression,
+    },
+    Output {
+        values: Vec<Expression>,
+    },
+    Input {
+        name: String,
+        typee: Type,
+    },
+    Import {
+        name: String,
+    },
+    If {
+        condition: Expression,
+        body: Vec<Statement>,
+        else_body: Option<Vec<Statement>>,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -142,6 +163,15 @@ impl Lexer {
                 Token::RParen
             }
 
+            Some('{') => {
+                self.advance();
+                Token::LBrace
+            }
+            Some('}') => {
+                self.advance();
+                Token::RBrace
+            }
+
             Some(c) if c.is_ascii_digit() => {
                 let mut number = String::new();
                 let mut is_float = false;
@@ -225,6 +255,10 @@ impl Lexer {
                     Token::IO
                 } else if name == "import" {
                     Token::Import
+                } else if name == "if" {
+                    Token::If
+                } else if name == "else" {
+                    Token::Else
                 } else {
                     Token::Name(name)
                 }
@@ -331,6 +365,7 @@ impl Parser {
             Token::Type(Type::Bool) => self.parse_decleration(),
             Token::IO => self.parse_io(),
             Token::Import => self.parse_import(),
+            Token::If => self.parse_if(),
             _ => panic!("expected statement"),
         }
     }
@@ -459,6 +494,51 @@ impl Parser {
 
         Statement::Import { name }
     }
+    fn parse_if(&mut self) -> Statement {
+        self.advance();
+
+        let condition = self.parse_expression();
+
+        match self.current() {
+            Token::LBrace => self.advance(),
+            _ => panic!("expected '{{'"),
+        }
+
+        let mut body = Vec::new();
+
+        while self.current() != Token::RBrace {
+            body.push(self.parse_statement());
+        }
+
+        self.advance();
+
+        let else_body = if self.current() == Token::Else {
+            self.advance();
+
+            match self.current() {
+                Token::LBrace => self.advance(),
+                _ => panic!("expected '{{'"),
+            }
+
+            let mut body = Vec::new();
+
+            while self.current() != Token::RBrace {
+                body.push(self.parse_statement());
+            }
+
+            self.advance();
+
+            Some(body)
+        } else {
+            None
+        };
+
+        Statement::If {
+            condition,
+            body,
+            else_body,
+        }
+    }
     fn parse_expression(&mut self) -> Expression {
         let left = match self.current() {
             Token::Value(value) => {
@@ -519,6 +599,7 @@ fn main() {
 
 fn compile(program: &Program) -> String {
     let mut bytecode = String::new();
+    let mut label_id = 0;
 
     for statement in &program.statements {
         match statement {
@@ -554,6 +635,56 @@ fn compile(program: &Program) -> String {
                 }
                 _ => panic!("unknown import: {}", name),
             },
+            Statement::If {
+                condition,
+                body,
+                else_body,
+            } => {
+                let if_label = format!("if_{}", label_id);
+                let else_label = format!("else_{}", label_id);
+                label_id += 1;
+
+                bytecode.push_str(&compile_expression(condition));
+
+                bytecode.push_str(&format!("jumpif true {}\n", if_label));
+                bytecode.push_str(&format!("jumpif false {}\n", else_label));
+
+                bytecode.push_str(&format!("label {}\n", if_label));
+
+                for statement in body {
+                    match statement {
+                        Statement::Output { values } => {
+                            for value in values {
+                                bytecode.push_str(&compile_expression(value));
+                                bytecode.push_str("print\n");
+                            }
+                        }
+
+                        _ => panic!("statement not supported in if yet :("),
+                    }
+                }
+
+                bytecode.push_str("ret\n");
+
+                bytecode.push_str(&format!("label {}\n", else_label));
+
+                if let Some(else_body) = else_body {
+                    for statement in else_body {
+                        match statement {
+                            Statement::Output { values } => {
+                                for value in values {
+                                    bytecode.push_str(&compile_expression(value));
+                                    bytecode.push_str("print\n");
+                                }
+                            }
+
+                            _ => panic!("statement not supported in else yet :("),
+                        }
+                    }
+                }
+
+                bytecode.push_str("ret\n");
+            }
         }
     }
 
