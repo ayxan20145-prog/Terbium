@@ -721,6 +721,7 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
             }
 
             bytecode.push_str(&format!("label {}\n", end_label));
+            bytecode.push_str("pop");
         }
     }
 }
