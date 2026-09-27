@@ -1,3 +1,5 @@
+import math;
+
 IO << int num1;
 IO << string oper;
 IO << int num2;
@@ -12,9 +14,22 @@ if oper == "+" {
 			IO >> num1 * num2 >> "\n";
 		} else {
 			if oper == "/" {
-				IO >> num1 / num2 >> "\n";
+				if num2 == 0 {
+					IO >> "cant divide by zero\n";
+				} else {
+					IO >> num1 / num2 >> "\n";
+				}
 			} else {
-				IO >> "unknown oper\n";
+				if oper == "^" {
+					push num1;
+					push num2;
+					call pow;
+					pop result;
+
+					IO >> result >> "\n";
+				} else {
+					IO >> "unknown oper\n";
+				}
 			}
 		}
 	}

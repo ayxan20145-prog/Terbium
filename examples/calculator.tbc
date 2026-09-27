@@ -1,3 +1,33 @@
+jump __std_end_0
+label pow
+store power
+store base
+push 1
+store result
+label __std_while_1
+load power
+push 0
+gt
+jumpif false __std_end_1
+pop
+load result
+load base
+mul
+store result
+load power
+push 1
+sub
+store power
+jump __std_while_1
+label __std_end_1
+pop
+load result
+ret
+label __std_end_0
+push 3.141592653589793
+store pi
+push 2.718281828459045
+store e
 read
 stoi
 store num1
@@ -61,17 +91,51 @@ jumpif true __if_3
 jumpif false __else_3
 label __if_3
 pop
+load num2
+push 0
+eq
+jumpif true __if_4
+jumpif false __else_4
+label __if_4
+pop
+pushstr cant divide by zero\n
+print
+jump __end_4
+label __else_4
+pop
 load num1
 load num2
 div
 print
 pushstr \n
 print
+jump __end_4
+label __end_4
 jump __end_3
 label __else_3
 pop
+load oper
+pushstr ^
+eq
+jumpif true __if_5
+jumpif false __else_5
+label __if_5
+pop
+load num1
+load num2
+call pow
+store result
+load result
+print
+pushstr \n
+print
+jump __end_5
+label __else_5
+pop
 pushstr unknown oper\n
 print
+jump __end_5
+label __end_5
 jump __end_3
 label __end_3
 jump __end_2
