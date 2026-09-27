@@ -49,6 +49,7 @@ enum Token {
     Push,
 
     Label,
+    Call,
 
     Semicolon,
     Eof,
@@ -81,6 +82,9 @@ enum Statement {
     Label {
         name: String,
         body: Vec<Statement>,
+    },
+    Call {
+        name: String,
     },
 }
 
@@ -288,6 +292,8 @@ impl Lexer {
                     Token::Push
                 } else if name == "label" {
                     Token::Label
+                } else if name == "call" {
+                    Token::Call
                 } else {
                     Token::Name(name)
                 }
@@ -417,6 +423,7 @@ impl Parser {
             Token::If => self.parse_if(),
             Token::Push => self.parse_push(),
             Token::Label => self.parse_label(),
+            Token::Call => self.parse_call(),
             _ => panic!("expected statement"),
         }
     }
@@ -628,6 +635,24 @@ impl Parser {
 
         Statement::Label { name, body }
     }
+    fn parse_call(&mut self) -> Statement {
+        self.advance();
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Call { name }
+    }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
             Token::Value(value) => {
@@ -750,9 +775,9 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
             body,
             else_body,
         } => {
-            let if_label = format!("if_{}", *label_id);
-            let else_label = format!("else_{}", *label_id);
-            let end_label = format!("end_{}", *label_id);
+            let if_label = format!("__if_{}", *label_id);
+            let else_label = format!("__else_{}", *label_id);
+            let end_label = format!("__end_{}", *label_id);
 
             *label_id += 1;
 
@@ -783,11 +808,21 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
             bytecode.push_str(&compile_expression(value));
         }
         Statement::Label { name, body } => {
+            let end_label = format!("__end_{}", *label_id);
+            *label_id += 1;
+
+            bytecode.push_str(&format!("jump {}\n", end_label));
+
             bytecode.push_str(&format!("label {}\n", name));
 
             compile_statements(body, bytecode, label_id);
 
             bytecode.push_str("ret\n");
+
+            bytecode.push_str(&format!("label {}\n", end_label));
+        }
+        Statement::Call { name } => {
+            bytecode.push_str(&format!("call {}\n", name));
         }
     }
 }
