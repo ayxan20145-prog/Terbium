@@ -862,7 +862,7 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
             bytecode.push_str(&compile_expression(value));
         }
         Statement::Pop { name } => {
-            bytecode.push_str(&format!("store {}", name));
+            bytecode.push_str(&format!("store {}\n", name));
         }
         Statement::Label { name, body } => {
             let end_label = format!("__end_{}", *label_id);
