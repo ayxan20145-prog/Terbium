@@ -1,0 +1,82 @@
+read
+stoi
+store num1
+read
+store oper
+read
+stoi
+store num2
+load oper
+pushstr +
+eq
+jumpif true __if_0
+jumpif false __else_0
+label __if_0
+pop
+load num1
+load num2
+add
+print
+pushstr \n
+print
+jump __end_0
+label __else_0
+pop
+load oper
+pushstr -
+eq
+jumpif true __if_1
+jumpif false __else_1
+label __if_1
+pop
+load num1
+load num2
+sub
+print
+pushstr \n
+print
+jump __end_1
+label __else_1
+pop
+load oper
+pushstr *
+eq
+jumpif true __if_2
+jumpif false __else_2
+label __if_2
+pop
+load num1
+load num2
+mul
+print
+pushstr \n
+print
+jump __end_2
+label __else_2
+pop
+load oper
+pushstr /
+eq
+jumpif true __if_3
+jumpif false __else_3
+label __if_3
+pop
+load num1
+load num2
+div
+print
+pushstr \n
+print
+jump __end_3
+label __else_3
+pop
+pushstr unknown oper\n
+print
+jump __end_3
+label __end_3
+jump __end_2
+label __end_2
+jump __end_1
+label __end_1
+jump __end_0
+label __end_0

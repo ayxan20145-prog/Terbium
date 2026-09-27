@@ -1,0 +1,21 @@
+IO << int num1;
+IO << string oper;
+IO << int num2;
+
+if oper == "+" {
+	IO >> num1 + num2 >> "\n";
+} else {
+	if oper == "-" {
+		IO >> num1 - num2 >> "\n";
+	} else {
+		if oper == "*" {
+			IO >> num1 * num2 >> "\n";
+		} else {
+			if oper == "/" {
+				IO >> num1 / num2 >> "\n";
+			} else {
+				IO >> "unknown oper\n";
+			}
+		}
+	}
+}
