@@ -48,6 +48,8 @@ enum Token {
 
     Push,
 
+    Label,
+
     Semicolon,
     Eof,
 }
@@ -75,6 +77,10 @@ enum Statement {
     },
     Push {
         value: Expression,
+    },
+    Label {
+        name: String,
+        body: Vec<Statement>,
     },
 }
 
@@ -280,6 +286,8 @@ impl Lexer {
                     Token::Else
                 } else if name == "push" {
                     Token::Push
+                } else if name == "label" {
+                    Token::Label
                 } else {
                     Token::Name(name)
                 }
@@ -408,6 +416,7 @@ impl Parser {
             Token::Import => self.parse_import(),
             Token::If => self.parse_if(),
             Token::Push => self.parse_push(),
+            Token::Label => self.parse_label(),
             _ => panic!("expected statement"),
         }
     }
@@ -593,6 +602,32 @@ impl Parser {
 
         Statement::Push { value }
     }
+    fn parse_label(&mut self) -> Statement {
+        self.advance();
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::LBrace => self.advance(),
+            _ => panic!("expected '{{'"),
+        }
+
+        let mut body = Vec::new();
+
+        while self.current() != Token::RBrace {
+            body.push(self.parse_statement());
+        }
+
+        self.advance();
+
+        Statement::Label { name, body }
+    }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
             Token::Value(value) => {
@@ -745,6 +780,13 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
         }
         Statement::Push { value } => {
             bytecode.push_str(&compile_expression(value));
+        }
+        Statement::Label { name, body } => {
+            bytecode.push_str(&format!("label {}\n", name));
+
+            compile_statements(body, bytecode, label_id);
+
+            bytecode.push_str("ret\n");
         }
     }
 }
