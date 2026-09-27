@@ -47,6 +47,7 @@ enum Token {
     Else,
 
     Push,
+    Pop,
 
     Label,
     Call,
@@ -80,6 +81,9 @@ enum Statement {
     },
     Push {
         value: Expression,
+    },
+    Pop {
+        name: String,
     },
     Label {
         name: String,
@@ -302,6 +306,8 @@ impl Lexer {
                     Token::Call
                 } else if name == "while" {
                     Token::While
+                } else if name == "pop" {
+                    Token::Pop
                 } else {
                     Token::Name(name)
                 }
@@ -430,6 +436,7 @@ impl Parser {
             Token::Import => self.parse_import(),
             Token::If => self.parse_if(),
             Token::Push => self.parse_push(),
+            Token::Pop => self.parse_pop(),
             Token::Label => self.parse_label(),
             Token::Call => self.parse_call(),
             Token::While => self.parse_while(),
@@ -617,6 +624,24 @@ impl Parser {
         }
 
         Statement::Push { value }
+    }
+    fn parse_pop(&mut self) -> Statement {
+        self.advance();
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Pop { name }
     }
     fn parse_label(&mut self) -> Statement {
         self.advance();
@@ -835,6 +860,9 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
         }
         Statement::Push { value } => {
             bytecode.push_str(&compile_expression(value));
+        }
+        Statement::Pop { name } => {
+            bytecode.push_str(&format!("store {}", name));
         }
         Statement::Label { name, body } => {
             let end_label = format!("__end_{}", *label_id);
