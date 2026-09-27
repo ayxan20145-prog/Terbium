@@ -51,6 +51,8 @@ enum Token {
     Label,
     Call,
 
+    While,
+
     Semicolon,
     Eof,
 }
@@ -85,6 +87,10 @@ enum Statement {
     },
     Call {
         name: String,
+    },
+    While {
+        condition: Expression,
+        body: Vec<Statement>,
     },
 }
 
@@ -294,6 +300,8 @@ impl Lexer {
                     Token::Label
                 } else if name == "call" {
                     Token::Call
+                } else if name == "while" {
+                    Token::While
                 } else {
                     Token::Name(name)
                 }
@@ -424,6 +432,7 @@ impl Parser {
             Token::Push => self.parse_push(),
             Token::Label => self.parse_label(),
             Token::Call => self.parse_call(),
+            Token::While => self.parse_while(),
             _ => panic!("expected statement"),
         }
     }
@@ -653,6 +662,26 @@ impl Parser {
 
         Statement::Call { name }
     }
+    fn parse_while(&mut self) -> Statement {
+        self.advance();
+
+        let condition = self.parse_expression();
+
+        match self.current() {
+            Token::LBrace => self.advance(),
+            _ => panic!("expected '{{'"),
+        }
+
+        let mut body = Vec::new();
+
+        while self.current() != Token::RBrace {
+            body.push(self.parse_statement());
+        }
+
+        self.advance();
+
+        Statement::While { condition, body }
+    }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
             Token::Value(value) => {
@@ -795,8 +824,8 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
 
             bytecode.push_str(&format!("label {}\n", else_label));
 
+            bytecode.push_str("pop\n");
             if let Some(else_body) = else_body {
-                bytecode.push_str("pop\n");
                 compile_statements(else_body, bytecode, label_id);
 
                 bytecode.push_str(&format!("jump {}\n", end_label));
@@ -823,6 +852,25 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
         }
         Statement::Call { name } => {
             bytecode.push_str(&format!("call {}\n", name));
+        }
+        Statement::While { condition, body } => {
+            let while_label = format!("__while_{}", *label_id);
+            let end_label = format!("__end_{}", *label_id);
+            *label_id += 1;
+
+            bytecode.push_str(&format!("label {}\n", while_label));
+
+            bytecode.push_str(&compile_expression(condition));
+
+            bytecode.push_str(&format!("jumpif false {}\n", end_label));
+
+            bytecode.push_str("pop\n");
+            compile_statements(body, bytecode, label_id);
+
+            bytecode.push_str(&format!("jump {}\n", while_label));
+
+            bytecode.push_str(&format!("label {}\n", end_label));
+            bytecode.push_str("pop\n");
         }
     }
 }
