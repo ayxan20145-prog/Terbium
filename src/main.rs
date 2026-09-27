@@ -763,6 +763,7 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
 
             bytecode.push_str(&format!("label {}\n", if_label));
 
+            bytecode.push_str("pop\n");
             compile_statements(body, bytecode, label_id);
 
             bytecode.push_str(&format!("jump {}\n", end_label));
@@ -770,13 +771,13 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
             bytecode.push_str(&format!("label {}\n", else_label));
 
             if let Some(else_body) = else_body {
+                bytecode.push_str("pop\n");
                 compile_statements(else_body, bytecode, label_id);
 
                 bytecode.push_str(&format!("jump {}\n", end_label));
             }
 
             bytecode.push_str(&format!("label {}\n", end_label));
-            bytecode.push_str("pop\n");
         }
         Statement::Push { value } => {
             bytecode.push_str(&compile_expression(value));
