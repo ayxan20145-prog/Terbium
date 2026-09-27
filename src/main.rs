@@ -46,6 +46,8 @@ enum Token {
     If,
     Else,
 
+    Push,
+
     Semicolon,
     Eof,
 }
@@ -70,6 +72,9 @@ enum Statement {
         condition: Expression,
         body: Vec<Statement>,
         else_body: Option<Vec<Statement>>,
+    },
+    Push {
+        value: Expression,
     },
 }
 
@@ -273,6 +278,8 @@ impl Lexer {
                     Token::If
                 } else if name == "else" {
                     Token::Else
+                } else if name == "push" {
+                    Token::Push
                 } else {
                     Token::Name(name)
                 }
@@ -400,6 +407,7 @@ impl Parser {
             Token::IO => self.parse_io(),
             Token::Import => self.parse_import(),
             Token::If => self.parse_if(),
+            Token::Push => self.parse_push(),
             _ => panic!("expected statement"),
         }
     }
@@ -573,6 +581,18 @@ impl Parser {
             else_body,
         }
     }
+    fn parse_push(&mut self) -> Statement {
+        self.advance();
+
+        let value = self.parse_expression();
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Push { value }
+    }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
             Token::Value(value) => {
@@ -722,6 +742,9 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
 
             bytecode.push_str(&format!("label {}\n", end_label));
             bytecode.push_str("pop\n");
+        }
+        Statement::Push { value } => {
+            bytecode.push_str(&compile_expression(value));
         }
     }
 }
