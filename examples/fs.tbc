@@ -1,0 +1,39 @@
+jump __std_end_0
+label readf
+readf
+ret
+label __std_end_0
+jump __std_end_1
+label writef
+writef
+ret
+label __std_end_1
+jump __std_end_2
+label removef
+removef
+ret
+label __std_end_2
+jump __std_end_3
+label createdir
+createdir
+ret
+label __std_end_3
+jump __std_end_4
+label removedir
+removedir
+ret
+label __std_end_4
+pushstr calculator.tb
+call readf
+store content
+load content
+print
+pushstr hi.txt
+pushstr hello world
+call writef
+pushstr hi.txt
+call removef
+pushstr hi
+call createdir
+pushstr hi
+call removedir

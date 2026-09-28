@@ -1,0 +1,24 @@
+import fs;
+
+# Reading a file
+push "calculator.tb"; # File to read
+call readf;
+pop content;
+IO >> content;
+
+# Writing a file
+push "hi.txt"; # File path
+push "hello world"; # File content
+call writef;
+
+# Removing a file
+push "hi.txt"; # File path
+call removef;
+
+# Creating a dir
+push "hi"; # Dir path
+call createdir;
+
+# Removing a dir
+push "hi"; # Dir path
+call removedir;
