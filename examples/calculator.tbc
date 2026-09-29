@@ -1,14 +1,14 @@
-jump __std_end_0
+jump __std_math_end_0
 label pow
 store power
 store base
 push 1
 store result
-label __std_while_1
+label __std_math_while_1
 load power
 push 0
 gt
-jumpif false __std_end_1
+jumpif false __std_math_end_1
 pop
 load result
 load base
@@ -18,12 +18,12 @@ load power
 push 1
 sub
 store power
-jump __std_while_1
-label __std_end_1
+jump __std_math_while_1
+label __std_math_end_1
 pop
 load result
 ret
-label __std_end_0
+label __std_math_end_0
 push 3.141592653589793
 store pi
 push 2.718281828459045

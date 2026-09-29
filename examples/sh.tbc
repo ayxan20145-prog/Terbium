@@ -1,0 +1,10 @@
+jump __std_sh_end_0
+label sh
+sh
+ret
+label __std_sh_end_0
+pushstr echo hi
+call sh
+store result
+load result
+print

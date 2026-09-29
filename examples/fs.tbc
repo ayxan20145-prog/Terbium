@@ -1,28 +1,28 @@
-jump __std_end_0
+jump __std_fs_end_0
 label readf
 readf
 ret
-label __std_end_0
-jump __std_end_1
+label __std_fs_end_0
+jump __std_fs_end_1
 label writef
 writef
 ret
-label __std_end_1
+label __std_fs_end_1
 jump __std_end_2
 label removef
 removef
 ret
-label __std_end_2
-jump __std_end_3
+label __std_fs_end_2
+jump __std_fs_end_3
 label createdir
 createdir
 ret
-label __std_end_3
-jump __std_end_4
+label __std_fs_end_3
+jump __std_fs_end_4
 label removedir
 removedir
 ret
-label __std_end_4
+label __std_fs_end_4
 pushstr calculator.tb
 call readf
 store content
