@@ -1,0 +1,10 @@
+jump __end_0
+label strlen
+strlen
+ret
+label __end_0
+jump __end_1
+label strconcat
+strconcat
+ret
+label __end_1

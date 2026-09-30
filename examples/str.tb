@@ -1,0 +1,12 @@
+import str;
+
+push "hello";
+call strlen;
+pop result;
+IO >> result >> "\n";
+
+push "hello";
+push " world";
+call strconcat;
+pop result;
+IO >> result >> "\n";

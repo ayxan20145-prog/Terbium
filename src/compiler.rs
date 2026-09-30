@@ -6,6 +6,7 @@ use crate::{
 const STD_MATH: &str = include_str!("../std/math.tbc");
 const STD_FS: &str = include_str!("../std/fs.tbc");
 const STD_SH: &str = include_str!("../std/sh.tbc");
+const STD_STR: &str = include_str!("../std/str.tbc");
 
 pub fn compile(program: &Program) -> String {
     let mut bytecode = String::new();
@@ -51,6 +52,7 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
             "math" => bytecode.push_str(STD_MATH),
             "fs" => bytecode.push_str(STD_FS),
             "sh" => bytecode.push_str(STD_SH),
+            "str" => bytecode.push_str(STD_STR),
             _ => panic!("unknown import: {}", name),
         },
 
