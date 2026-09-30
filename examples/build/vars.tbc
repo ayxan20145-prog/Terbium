@@ -1,0 +1,40 @@
+push 5
+store x
+load x
+push 2
+add
+store y
+pushstr hi
+store hi
+load x
+print
+pushstr \n
+print
+load y
+print
+pushstr \n
+print
+load hi
+print
+pushstr \n
+print
+push 5
+store x
+load x
+push 2
+add
+store y
+pushstr hi
+store hi
+load x
+print
+pushstr \n
+print
+load y
+print
+pushstr \n
+print
+load hi
+print
+pushstr \n
+print

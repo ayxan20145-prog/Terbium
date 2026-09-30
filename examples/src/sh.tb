@@ -2,5 +2,3 @@ import sh;
 
 push "echo hi"; # Command to execute
 call sh;
-pop result;
-IO >> result;

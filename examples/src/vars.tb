@@ -1,0 +1,19 @@
+# method 1: declaring
+# type name = expression;
+int x = 5;
+int y = x + 2;
+string hi = "hi";
+
+IO >> x >> "\n" >> y >> "\n" >> hi >> "\n";
+
+# method 2: using push/pop
+# push expression;
+# pop name;
+push 5;
+pop x;
+push x + 2;
+pop y;
+push "hi";
+pop hi;
+
+IO >> x >> "\n" >> y >> "\n" >> hi >> "\n";
