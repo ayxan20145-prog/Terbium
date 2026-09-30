@@ -1,0 +1,18 @@
+pushstr hi
+store x
+load x
+print
+pushstr \n
+print
+push 5
+pushstr hello
+store word
+store num
+load word
+print
+pushstr \n
+print
+load num
+print
+pushstr \n
+print

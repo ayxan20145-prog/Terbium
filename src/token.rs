@@ -13,6 +13,9 @@ pub enum Token {
     LBrace,
     RBrace,
 
+    LBracket,
+    RBracket,
+
     Plus,
     Minus,
     Star,
@@ -43,6 +46,7 @@ pub enum Token {
     While,
 
     Semicolon,
+    Comma,
     Eof,
 }
 

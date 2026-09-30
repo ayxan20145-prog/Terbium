@@ -90,8 +90,10 @@ fn compile_statement(statement: &Statement, bytecode: &mut String, label_id: &mu
 
             bytecode.push_str(&format!("label {}\n", end_label));
         }
-        Statement::Push { value } => {
-            bytecode.push_str(&compile_expression(value));
+        Statement::Push { values } => {
+            for value in values {
+                bytecode.push_str(&compile_expression(value));
+            }
         }
         Statement::Pop { name } => {
             bytecode.push_str(&format!("store {}\n", name));

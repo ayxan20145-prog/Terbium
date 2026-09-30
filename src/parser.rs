@@ -211,14 +211,40 @@ impl Parser {
     fn parse_push(&mut self) -> Statement {
         self.advance();
 
-        let value = self.parse_expression();
+        let values = if self.current() == Token::LBracket {
+            self.advance();
+
+            let mut values = Vec::new();
+
+            if self.current() != Token::RBracket {
+                loop {
+                    values.push(self.parse_expression());
+
+                    if self.current() == Token::Comma {
+                        self.advance();
+                        continue;
+                    }
+
+                    break;
+                }
+            }
+
+            match self.current() {
+                Token::RBracket => self.advance(),
+                _ => panic!("expected ']'"),
+            }
+
+            values
+        } else {
+            vec![self.parse_expression()]
+        };
 
         match self.current() {
             Token::Semicolon => self.advance(),
             _ => panic!("expected ';'"),
         }
 
-        Statement::Push { value }
+        Statement::Push { values }
     }
     fn parse_pop(&mut self) -> Statement {
         self.advance();

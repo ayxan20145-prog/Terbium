@@ -22,7 +22,7 @@ pub enum Statement {
         else_body: Option<Vec<Statement>>,
     },
     Push {
-        value: Expression,
+        values: Vec<Expression>,
     },
     Pop {
         name: String,

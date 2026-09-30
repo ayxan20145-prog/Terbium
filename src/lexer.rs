@@ -52,6 +52,11 @@ impl Lexer {
                 Token::Semicolon
             }
 
+            Some(',') => {
+                self.advance();
+                Token::Comma
+            }
+
             Some('(') => {
                 self.advance();
                 Token::LParen
@@ -68,6 +73,15 @@ impl Lexer {
             Some('}') => {
                 self.advance();
                 Token::RBrace
+            }
+
+            Some('[') => {
+                self.advance();
+                Token::LBracket
+            }
+            Some(']') => {
+                self.advance();
+                Token::RBracket
             }
 
             Some('#') => {

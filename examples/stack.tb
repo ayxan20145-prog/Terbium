@@ -1,0 +1,8 @@
+push "hi"; # push hi to stack
+pop x; # pop the top value in stack and store it as x
+IO >> x >> "\n";
+
+push [5, "hello"]; # push 5 and hello to stack
+pop word;
+pop num;
+IO >> word >> "\n" >> num >> "\n";
