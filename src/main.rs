@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Token {
     Value(i64),
 
@@ -126,6 +126,9 @@ impl Parser {
             position: 0,
         }
     }
+    fn current(&self) -> Token {
+        self.tokens[self.position].clone()
+    }
 }
 
 fn main() {
@@ -134,4 +137,5 @@ fn main() {
     let tokens = lexer.tokenize();
 
     let parser = Parser::new(tokens);
+    println!("{:?}", parser.current());
 }
