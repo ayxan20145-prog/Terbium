@@ -22,8 +22,12 @@ impl Lexer {
             position: 0,
         }
     }
+    fn current(&self) -> Option<char> {
+        self.source.get(self.position).copied()
+    }
 }
 
 fn main() {
     let lexer = Lexer::new("1 + 2;");
+    println!("{:?}", lexer.current());
 }
