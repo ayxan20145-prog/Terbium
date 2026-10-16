@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::{collections::HashMap, env, fs};
 
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
@@ -301,14 +301,76 @@ fn main() {
 
 fn compile(program: &Program) -> String {
     let mut assembly = String::new();
+    let mut variables: HashMap<String, i32> = HashMap::new();
+    let mut offset = 0;
+
+    for statement in &program.statements {
+        if let Statement::Decleration { name, .. } = statement {
+            offset += 8;
+            variables.insert(name.clone(), offset);
+        }
+    }
+
+    let stack_size = offset;
 
     assembly.push_str("global _start\n");
     assembly.push_str("section .text\n");
     assembly.push_str("_start:\n");
+    assembly.push_str("    push rbp\n");
+    assembly.push_str("    mov rbp, rsp\n");
 
+    assembly.push_str(&format!("    sub rsp, {}\n", stack_size));
+
+    for statement in &program.statements {
+        match statement {
+            Statement::Decleration { name, value } => {
+                compile_expression(&mut assembly, value, &variables);
+                let off = variables[name];
+                assembly.push_str(&format!("    mov [rbp - {}], rax\n", off));
+            }
+        }
+    }
+
+    assembly.push_str("    mov rsp, rbp\n");
+    assembly.push_str("    pop rbp\n");
     assembly.push_str("    mov rax, 60\n");
     assembly.push_str("    xor rdi, rdi\n");
     assembly.push_str("    syscall\n");
 
     assembly
+}
+
+fn compile_expression(assembly: &mut String, expr: &Expression, variables: &HashMap<String, i32>) {
+    match expr {
+        Expression::Value(v) => {
+            assembly.push_str(&format!("    mov rax, {}\n", v));
+        }
+
+        Expression::Variable(name) => {
+            let offset = *variables
+                .get(name)
+                .unwrap_or_else(|| panic!("undefined variable: {}", name));
+            assembly.push_str(&format!("    mov rax, [rbp - {}]\n", offset));
+        }
+
+        Expression::Operation(left, op, right) => {
+            compile_expression(assembly, left, variables);
+            assembly.push_str("    push rax\n");
+            compile_expression(assembly, right, variables);
+            assembly.push_str("    mov rcx, rax\n");
+            assembly.push_str("    pop rax\n");
+
+            match op {
+                Token::Plus => assembly.push_str("    add rax, rcx\n"),
+                Token::Minus => assembly.push_str("    sub rax, rcx\n"),
+                Token::Star => assembly.push_str("    imul rax, rcx\n"),
+                Token::Slash => {
+                    assembly.push_str("    cqo\n");
+                    assembly.push_str("    idiv rcx\n");
+                }
+
+                _ => unreachable!("non-operator token"),
+            }
+        }
+    }
 }
