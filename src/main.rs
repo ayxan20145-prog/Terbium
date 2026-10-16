@@ -159,14 +159,39 @@ impl Parser {
         Statement::Expression(expr)
     }
     fn parse_expression(&mut self) -> Expression {
-        // only parses a single value for now
-        match self.current() {
-            Token::Value(n) => {
+        let mut left = match self.current() {
+            Token::Value(value) => {
                 self.advance();
-                Expression::Value(n)
+                Expression::Value(value)
             }
-            _ => panic!("expected expression"),
+
+            _ => panic!("expected value"),
+        };
+
+        loop {
+            let op = match self.current() {
+                Token::Plus | Token::Minus | Token::Star | Token::Slash => {
+                    let op = self.current();
+                    self.advance();
+                    op
+                }
+
+                _ => break,
+            };
+
+            let right = match self.current() {
+                Token::Value(value) => {
+                    self.advance();
+                    Expression::Value(value)
+                }
+
+                _ => panic!("expected value"),
+            };
+
+            left = Expression::Operation(Box::new(left), op, Box::new(right));
         }
+
+        left
     }
     fn parse_program(&mut self) -> Program {
         let mut statements = Vec::new();
@@ -180,7 +205,7 @@ impl Parser {
 }
 
 fn main() {
-    let mut lexer = Lexer::new("1;");
+    let mut lexer = Lexer::new("1 + 2 - 1 * 2 / 1;");
 
     let tokens = lexer.tokenize();
 
