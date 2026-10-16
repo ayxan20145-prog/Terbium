@@ -11,10 +11,12 @@ enum Token {
     Eof,
 }
 
+#[derive(Debug)]
 enum Statement {
     Expression(Expression),
 }
 
+#[derive(Debug)]
 enum Expression {
     Value(i64),
     Operation(Box<Expression>, Token, Box<Expression>),
@@ -28,6 +30,11 @@ struct Lexer {
 struct Parser {
     tokens: Vec<Token>,
     position: usize,
+}
+
+#[derive(Debug)]
+struct Program {
+    statements: Vec<Statement>,
 }
 
 impl Lexer {
@@ -161,6 +168,15 @@ impl Parser {
             _ => panic!("expected expression"),
         }
     }
+    fn parse_program(&mut self) -> Program {
+        let mut statements = Vec::new();
+
+        while self.current() != Token::Eof {
+            statements.push(self.parse_statement());
+        }
+
+        Program { statements }
+    }
 }
 
 fn main() {
@@ -170,5 +186,7 @@ fn main() {
 
     let mut parser = Parser::new(tokens);
 
-    let statement = parser.parse_statement();
+    let program = parser.parse_program();
+
+    println!("{:#?}", program);
 }
