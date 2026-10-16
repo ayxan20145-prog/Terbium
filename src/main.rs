@@ -1,5 +1,5 @@
 use clap::Parser as ClapParser;
-use std::{collections::HashMap, env, fs};
+use std::{collections::HashMap, fs, process::Command};
 
 #[derive(ClapParser, Debug)]
 #[command(name = "terbc", version, about = "Terbium compiler")]
@@ -302,7 +302,14 @@ fn main() {
 
     let assembly = compile(&program);
 
-    fs::write(&args.output, assembly).unwrap();
+    fs::write("output.asm", assembly).unwrap();
+
+    Command::new("nasm")
+        .args(["-f", "elf64", "output.asm", "-o", &args.output])
+        .status()
+        .unwrap();
+
+    fs::remove_file("output.asm").unwrap();
 }
 
 fn compile(program: &Program) -> String {
