@@ -1,7 +1,10 @@
-use std::{env, fs};
+use std::{env, fs, io::ErrorKind::AddrInUse};
 
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
+    Type(Type),
+    Name(String),
+    Equals,
     Value(i64),
 
     Plus,
@@ -15,13 +18,18 @@ enum Token {
 
 #[derive(Debug)]
 enum Statement {
-    Expression(Expression),
+    Decleration { name: String, value: Expression },
 }
 
 #[derive(Debug)]
 enum Expression {
     Value(i64),
     Operation(Box<Expression>, Token, Box<Expression>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum Type {
+    Int,
 }
 
 struct Lexer {
@@ -94,6 +102,11 @@ impl Lexer {
                 Token::Slash
             }
 
+            Some('=') => {
+                self.advance();
+                Token::Equals
+            }
+
             Some(c) if c.is_ascii_digit() => {
                 let mut number = String::new();
 
@@ -112,6 +125,30 @@ impl Lexer {
                 }
 
                 Token::Value(number.parse().unwrap())
+            }
+
+            Some(c) if c.is_alphabetic() => {
+                let mut name = String::new();
+
+                loop {
+                    match self.current() {
+                        Some(c) => {
+                            if c.is_alphanumeric() {
+                                name.push(c);
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+
+                if name == "int" {
+                    Token::Type(Type::Int)
+                } else {
+                    Token::Name(name)
+                }
             }
 
             Some(c) => {
@@ -151,14 +188,37 @@ impl Parser {
         self.position += 1;
     }
     fn parse_statement(&mut self) -> Statement {
-        let expr = self.parse_expression();
+        let typee = match self.current() {
+            Token::Type(typee) => {
+                self.advance();
+                typee
+            }
+
+            _ => panic!("expected type"),
+        };
+
+        let name = match self.current() {
+            Token::Name(name) => {
+                self.advance();
+                name
+            }
+
+            _ => panic!("expected name"),
+        };
+
+        match self.current() {
+            Token::Equals => self.advance(),
+            _ => panic!("expected '='"),
+        }
+
+        let value = self.parse_expression();
 
         match self.current() {
             Token::Semicolon => self.advance(),
             _ => panic!("expected ';'"),
         }
 
-        Statement::Expression(expr)
+        Statement::Decleration { name, value }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
