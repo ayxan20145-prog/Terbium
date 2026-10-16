@@ -1,4 +1,4 @@
-use std::{env, fs, io::ErrorKind::AddrInUse};
+use std::{env, fs};
 
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
