@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 enum Token {
     Value(i64),
 
@@ -28,11 +29,84 @@ impl Lexer {
     fn advance(&mut self) {
         self.position += 1;
     }
+    fn next_token(&mut self) -> Token {
+        loop {
+            match self.current() {
+                Some(c) => {
+                    if c.is_whitespace() {
+                        self.advance();
+                    } else {
+                        break;
+                    }
+                }
+                None => break,
+            }
+        }
+
+        match self.current() {
+            None => Token::Eof,
+
+            Some(';') => {
+                self.advance();
+                Token::Semicolon
+            }
+
+            Some('+') => {
+                self.advance();
+                Token::Plus
+            }
+
+            Some('-') => {
+                self.advance();
+                Token::Minus
+            }
+
+            Some('*') => {
+                self.advance();
+                Token::Star
+            }
+
+            Some('/') => {
+                self.advance();
+                Token::Slash
+            }
+
+            Some(c) if c.is_ascii_digit() => {
+                let mut number = String::new();
+
+                loop {
+                    match self.current() {
+                        Some(c) => {
+                            if c.is_ascii_digit() {
+                                number.push(c);
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+
+                Token::Value(number.parse().unwrap())
+            }
+
+            Some(c) => {
+                panic!("unexpected char: {}", c);
+            }
+        }
+    }
 }
 
 fn main() {
     let mut lexer = Lexer::new("1 + 2;");
-    println!("{:?}", lexer.current());
-    lexer.advance();
-    println!("{:?}", lexer.current());
+
+    loop {
+        let token = lexer.next_token();
+        println!("{:?}", token);
+
+        if token == Token::Eof {
+            break;
+        }
+    }
 }
