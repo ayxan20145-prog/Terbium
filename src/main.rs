@@ -283,5 +283,21 @@ fn main() {
 
     let program = parser.parse_program();
 
-    println!("{:#?}", program);
+    let assembly = compile(&program);
+
+    fs::write("program.asm", assembly).unwrap();
+}
+
+fn compile(program: &Program) -> String {
+    let mut assembly = String::new();
+
+    assembly.push_str("global _start\n");
+    assembly.push_str("section .text\n");
+    assembly.push_str("_start:\n");
+
+    assembly.push_str("    mov rax, 60\n");
+    assembly.push_str("    xor rdi, rdi\n");
+    assembly.push_str("    syscall\n");
+
+    assembly
 }
