@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "Terbium"
-version = "0.4.0"
+name = "terbc"
+version = "0.4.1"
