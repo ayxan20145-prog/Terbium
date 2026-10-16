@@ -25,6 +25,7 @@ enum Statement {
 enum Expression {
     Value(i64),
     Operation(Box<Expression>, Token, Box<Expression>),
+    Variable(String),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -227,6 +228,11 @@ impl Parser {
                 Expression::Value(value)
             }
 
+            Token::Name(name) => {
+                self.advance();
+                Expression::Variable(name)
+            }
+
             _ => panic!("expected value"),
         };
 
@@ -245,6 +251,11 @@ impl Parser {
                 Token::Value(value) => {
                     self.advance();
                     Expression::Value(value)
+                }
+
+                Token::Name(name) => {
+                    self.advance();
+                    Expression::Variable(name)
                 }
 
                 _ => panic!("expected value"),
