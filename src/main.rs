@@ -1,4 +1,14 @@
+use clap::Parser as ClapParser;
 use std::{collections::HashMap, env, fs};
+
+#[derive(ClapParser, Debug)]
+#[command(name = "terbc", version, about = "Terbium compiler")]
+struct Cli {
+    input: String,
+
+    #[arg(short = 'o', long, default_value = "output.o")]
+    output: String,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 enum Token {
@@ -278,13 +288,9 @@ impl Parser {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        println!("usage: terbc <PATH>");
-        return;
-    }
+    let args = Cli::parse();
 
-    let content = fs::read_to_string(&args[1]).expect("Failed to read program");
+    let content = fs::read_to_string(&args.input).expect("Failed to read program");
 
     let mut lexer = Lexer::new(&content);
 
@@ -296,7 +302,7 @@ fn main() {
 
     let assembly = compile(&program);
 
-    fs::write("program.asm", assembly).unwrap();
+    fs::write(&args.output, assembly).unwrap();
 }
 
 fn compile(program: &Program) -> String {
