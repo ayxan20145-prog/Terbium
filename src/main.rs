@@ -11,6 +11,15 @@ enum Token {
     Eof,
 }
 
+enum Statement {
+    Expression(Expression),
+}
+
+enum Expression {
+    Value(i64),
+    Operation(Box<Expression>, Token, Box<Expression>),
+}
+
 struct Lexer {
     source: Vec<char>,
     position: usize,
@@ -132,14 +141,34 @@ impl Parser {
     fn advance(&mut self) {
         self.position += 1;
     }
+    fn parse_statement(&mut self) -> Statement {
+        let expr = self.parse_expression();
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Expression(expr)
+    }
+    fn parse_expression(&mut self) -> Expression {
+        // only parses a single value for now
+        match self.current() {
+            Token::Value(n) => {
+                self.advance();
+                Expression::Value(n)
+            }
+            _ => panic!("expected expression"),
+        }
+    }
 }
 
 fn main() {
-    let mut lexer = Lexer::new("1 + 2;");
+    let mut lexer = Lexer::new("1;");
 
     let tokens = lexer.tokenize();
 
     let mut parser = Parser::new(tokens);
-    parser.advance();
-    println!("{:?}", parser.current());
+
+    let statement = parser.parse_statement();
 }
