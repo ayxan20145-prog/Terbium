@@ -1,5 +1,5 @@
 use clap::Parser as ClapParser;
-use std::{collections::HashMap, fs, process::Command};
+use std::{collections::HashMap, fmt, fs, process::Command};
 
 #[derive(ClapParser, Debug)]
 #[command(name = "terbc", version, about = "Terbium compiler")]
@@ -15,7 +15,7 @@ enum Token {
     Type(Type),
     Name(String),
     Equals,
-    Value(i64),
+    Value(Value),
 
     Plus,
     Minus,
@@ -28,12 +28,16 @@ enum Token {
 
 #[derive(Debug)]
 enum Statement {
-    Decleration { name: String, value: Expression },
+    Decleration {
+        typee: Type,
+        name: String,
+        value: Expression,
+    },
 }
 
 #[derive(Debug)]
 enum Expression {
-    Value(i64),
+    Value(Value),
     Operation(Box<Expression>, Token, Box<Expression>),
     Variable(String),
 }
@@ -41,6 +45,13 @@ enum Expression {
 #[derive(Debug, PartialEq, Clone)]
 enum Type {
     Int,
+    Char,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum Value {
+    Int(i32),
+    Char(u8),
 }
 
 struct Lexer {
@@ -135,7 +146,45 @@ impl Lexer {
                     }
                 }
 
-                Token::Value(number.parse().unwrap())
+                Token::Value(Value::Int(number.parse().unwrap()))
+            }
+
+            Some('\'') => {
+                self.advance();
+
+                let byte = match self.current() {
+                    None => panic!("unterminated char"),
+                    Some('\\') => {
+                        self.advance();
+                        let esc = self.current().expect("unterminated escape");
+                        self.advance();
+                        match esc {
+                            'n' => b'\n',
+                            't' => b'\t',
+                            'r' => b'\r',
+                            '0' => 0,
+                            '\\' => b'\\',
+                            '\'' => b'\'',
+                            other => panic!("unknown escape: \\{}", other),
+                        }
+                    }
+                    Some(c) => {
+                        self.advance();
+                        let cp = c as u32;
+                        if cp > 255 {
+                            panic!("error message");
+                        }
+                        cp as u8
+                    }
+                };
+
+                match self.current() {
+                    Some('\'') => {
+                        self.advance();
+                        Token::Value(Value::Char(byte))
+                    }
+                    _ => panic!("expected closing quote"),
+                }
             }
 
             Some(c) if c.is_alphabetic() => {
@@ -157,6 +206,8 @@ impl Lexer {
 
                 if name == "int" {
                     Token::Type(Type::Int)
+                } else if name == "char" {
+                    Token::Type(Type::Char)
                 } else {
                     Token::Name(name)
                 }
@@ -229,7 +280,7 @@ impl Parser {
             _ => panic!("expected ';'"),
         }
 
-        Statement::Decleration { name, value }
+        Statement::Decleration { typee, name, value }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
@@ -287,6 +338,15 @@ impl Parser {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Value::Int(value) => write!(f, "{}", value),
+            Value::Char(value) => write!(f, "{}", value),
+        }
+    }
+}
+
 fn main() {
     let args = Cli::parse();
 
@@ -314,13 +374,13 @@ fn main() {
 
 fn compile(program: &Program) -> String {
     let mut assembly = String::new();
-    let mut variables: HashMap<String, i32> = HashMap::new();
+    let mut variables: HashMap<String, (i32, Type)> = HashMap::new();
     let mut offset = 0;
 
     for statement in &program.statements {
-        if let Statement::Decleration { name, .. } = statement {
+        if let Statement::Decleration { typee, name, .. } = statement {
             offset += 8;
-            variables.insert(name.clone(), offset);
+            variables.insert(name.clone(), (offset, typee.clone()));
         }
     }
 
@@ -336,10 +396,13 @@ fn compile(program: &Program) -> String {
 
     for statement in &program.statements {
         match statement {
-            Statement::Decleration { name, value } => {
+            Statement::Decleration { typee, name, value } => {
                 compile_expression(&mut assembly, value, &variables);
-                let off = variables[name];
-                assembly.push_str(&format!("    mov [rbp - {}], rax\n", off));
+                let (off, _) = &variables[name];
+                match typee {
+                    Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                    Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+                }
             }
         }
     }
@@ -353,17 +416,26 @@ fn compile(program: &Program) -> String {
     assembly
 }
 
-fn compile_expression(assembly: &mut String, expr: &Expression, variables: &HashMap<String, i32>) {
+fn compile_expression(
+    assembly: &mut String,
+    expr: &Expression,
+    variables: &HashMap<String, (i32, Type)>,
+) {
     match expr {
         Expression::Value(v) => {
             assembly.push_str(&format!("    mov rax, {}\n", v));
         }
 
         Expression::Variable(name) => {
-            let offset = *variables
+            let (offset, typee) = variables
                 .get(name)
                 .unwrap_or_else(|| panic!("undefined variable: {}", name));
-            assembly.push_str(&format!("    mov rax, [rbp - {}]\n", offset));
+            match typee {
+                Type::Int => assembly.push_str(&format!("    mov rax, [rbp - {}]\n", offset)),
+                Type::Char => {
+                    assembly.push_str(&format!("    movzx rax, byte [rbp - {}]\n", offset))
+                }
+            }
         }
 
         Expression::Operation(left, op, right) => {
