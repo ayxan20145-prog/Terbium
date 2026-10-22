@@ -46,12 +46,14 @@ enum Expression {
 enum Type {
     Int,
     Char,
+    Str,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 enum Value {
     Int(i32),
     Char(u8),
+    Str(Vec<u8>),
 }
 
 struct Lexer {
@@ -187,6 +189,43 @@ impl Lexer {
                 }
             }
 
+            Some('"') => {
+                self.advance();
+                let mut bytes = Vec::new();
+                loop {
+                    match self.current() {
+                        None => panic!("unterminated string"),
+                        Some('"') => {
+                            self.advance();
+                            break;
+                        }
+                        Some('\\') => {
+                            self.advance();
+                            let esc = self.current().expect("unterminated escape in string");
+                            self.advance();
+                            bytes.push(match esc {
+                                'n' => b'\n',
+                                't' => b'\t',
+                                'r' => b'\r',
+                                '0' => 0,
+                                '\\' => b'\\',
+                                '"' => b'"',
+                                '\'' => b'\'',
+                                other => panic!("unknown escape: \\{}", other),
+                            });
+                        }
+                        Some(c) => {
+                            self.advance();
+                            if c as u32 > 255 {
+                                panic!("error message but string");
+                            }
+                            bytes.push(c as u8);
+                        }
+                    }
+                }
+                Token::Value(Value::Str(bytes))
+            }
+
             Some(c) if c.is_alphabetic() => {
                 let mut name = String::new();
 
@@ -208,6 +247,8 @@ impl Lexer {
                     Token::Type(Type::Int)
                 } else if name == "char" {
                     Token::Type(Type::Char)
+                } else if name == "str" {
+                    Token::Type(Type::Str)
                 } else {
                     Token::Name(name)
                 }
@@ -343,6 +384,7 @@ impl fmt::Display for Value {
         match self {
             Value::Int(value) => write!(f, "{}", value),
             Value::Char(value) => write!(f, "{}", value),
+            Value::Str(_) => unreachable!(),
         }
     }
 }
@@ -386,7 +428,16 @@ fn compile(program: &Program) -> String {
 
     let stack_size = offset;
 
+    let strings = collect_strings(program);
+
     assembly.push_str("global _start\n");
+    assembly.push_str("section .data\n");
+    for (i, s) in strings.iter().enumerate() {
+        let mut parts: Vec<String> = s.iter().map(|b| b.to_string()).collect();
+        parts.push("0".to_string()); // null terminator
+        assembly.push_str(&format!("str_{}:\n    db {}\n", i, parts.join(", ")));
+    }
+
     assembly.push_str("section .text\n");
     assembly.push_str("_start:\n");
     assembly.push_str("    push rbp\n");
@@ -397,11 +448,12 @@ fn compile(program: &Program) -> String {
     for statement in &program.statements {
         match statement {
             Statement::Decleration { typee, name, value } => {
-                compile_expression(&mut assembly, value, &variables);
+                compile_expression(&mut assembly, value, &variables, &strings);
                 let (off, _) = &variables[name];
                 match typee {
                     Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
                     Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
+                    Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
                 }
             }
         }
@@ -420,8 +472,13 @@ fn compile_expression(
     assembly: &mut String,
     expr: &Expression,
     variables: &HashMap<String, (i32, Type)>,
+    strings: &[Vec<u8>],
 ) {
     match expr {
+        Expression::Value(Value::Str(bytes)) => {
+            let i = strings.iter().position(|s| s == bytes).unwrap();
+            assembly.push_str(&format!("    lea rax, [rel str_{}]\n", i));
+        }
         Expression::Value(v) => {
             assembly.push_str(&format!("    mov rax, {}\n", v));
         }
@@ -435,13 +492,14 @@ fn compile_expression(
                 Type::Char => {
                     assembly.push_str(&format!("    movzx rax, byte [rbp - {}]\n", offset))
                 }
+                Type::Str => assembly.push_str(&format!("    mov rax, [rbp - {}]\n", offset)),
             }
         }
 
         Expression::Operation(left, op, right) => {
-            compile_expression(assembly, left, variables);
+            compile_expression(assembly, left, variables, strings);
             assembly.push_str("    push rax\n");
-            compile_expression(assembly, right, variables);
+            compile_expression(assembly, right, variables, strings);
             assembly.push_str("    mov rcx, rax\n");
             assembly.push_str("    pop rax\n");
 
@@ -458,4 +516,22 @@ fn compile_expression(
             }
         }
     }
+}
+
+fn collect_strings(program: &Program) -> Vec<Vec<u8>> {
+    let mut strings = Vec::new();
+
+    for statement in &program.statements {
+        if let Statement::Decleration {
+            value: Expression::Value(Value::Str(bytes)),
+            ..
+        } = statement
+        {
+            if !strings.contains(bytes) {
+                strings.push(bytes.clone());
+            }
+        }
+    }
+
+    strings
 }
