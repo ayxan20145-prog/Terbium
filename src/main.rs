@@ -6,7 +6,7 @@ use std::{collections::HashMap, fmt, fs, process::Command};
 struct Cli {
     input: String,
 
-    #[arg(short = 'o', long, default_value = "output.o")]
+    #[arg(short = 'o', long, default_value = "a.out")]
     output: String,
 }
 
@@ -392,26 +392,41 @@ impl fmt::Display for Value {
 fn main() {
     let args = Cli::parse();
 
+    println!("reading program...");
     let content = fs::read_to_string(&args.input).expect("Failed to read program");
 
+    println!("lexing...");
     let mut lexer = Lexer::new(&content);
 
     let tokens = lexer.tokenize();
 
+    println!("parsing...");
     let mut parser = Parser::new(tokens);
 
     let program = parser.parse_program();
 
+    println!("compiling to assembly...");
     let assembly = compile(&program);
 
-    fs::write("output.asm", assembly).unwrap();
+    fs::write("output.tmp.asm", assembly).unwrap();
 
+    println!("assembling...");
     Command::new("nasm")
-        .args(["-f", "elf64", "output.asm", "-o", &args.output])
+        .args(["-f", "elf64", "output.tmp.asm", "-o", "output.tmp.o"])
         .status()
         .unwrap();
 
-    fs::remove_file("output.asm").unwrap();
+    println!("linking...");
+    Command::new("ld")
+        .args(["output.tmp.o", "-o", &args.output])
+        .status()
+        .unwrap();
+
+    println!("cleaning up...");
+    fs::remove_file("output.tmp.asm").unwrap();
+    fs::remove_file("output.tmp.o").unwrap();
+
+    println!("done!");
 }
 
 fn compile(program: &Program) -> String {
