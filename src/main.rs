@@ -130,27 +130,6 @@ impl Lexer {
                 self.advance();
                 Token::Equals
             }
-
-            Some(c) if c.is_ascii_digit() => {
-                let mut number = String::new();
-
-                loop {
-                    match self.current() {
-                        Some(c) => {
-                            if c.is_ascii_digit() {
-                                number.push(c);
-                                self.advance();
-                            } else {
-                                break;
-                            }
-                        }
-                        None => break,
-                    }
-                }
-
-                Token::Value(Value::Int(number.parse().unwrap()))
-            }
-
             Some('\'') => {
                 self.advance();
 
@@ -224,6 +203,42 @@ impl Lexer {
                     }
                 }
                 Token::Value(Value::Str(bytes))
+            }
+
+            Some('#') => {
+                loop {
+                    match self.current() {
+                        Some(c) => {
+                            if c == '\n' {
+                                break;
+                            }
+
+                            self.advance();
+                        }
+                        None => break,
+                    }
+                }
+
+                self.next_token()
+            }
+            Some(c) if c.is_ascii_digit() => {
+                let mut number = String::new();
+
+                loop {
+                    match self.current() {
+                        Some(c) => {
+                            if c.is_ascii_digit() {
+                                number.push(c);
+                                self.advance();
+                            } else {
+                                break;
+                            }
+                        }
+                        None => break,
+                    }
+                }
+
+                Token::Value(Value::Int(number.parse().unwrap()))
             }
 
             Some(c) if c.is_alphabetic() => {
