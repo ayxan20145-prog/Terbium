@@ -22,6 +22,13 @@ enum Token {
     Star,
     Slash,
 
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    EqualEqual,
+    NotEqual,
+
     Semicolon,
     Eof,
 }
@@ -47,6 +54,7 @@ enum Type {
     Int,
     Char,
     Str,
+    Bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -54,6 +62,7 @@ enum Value {
     Int(i32),
     Char(u8),
     Str(Vec<u8>),
+    Bool(bool),
 }
 
 struct Lexer {
@@ -128,8 +137,45 @@ impl Lexer {
 
             Some('=') => {
                 self.advance();
-                Token::Equals
+
+                if self.current() == Some('=') {
+                    self.advance();
+                    Token::EqualEqual
+                } else {
+                    Token::Equals
+                }
             }
+
+            Some('!') => {
+                self.advance();
+                if self.current() == Some('=') {
+                    self.advance();
+                    Token::NotEqual
+                } else {
+                    panic!("unexpected '!'");
+                }
+            }
+
+            Some('<') => {
+                self.advance();
+                if self.current() == Some('=') {
+                    self.advance();
+                    Token::LessEqual
+                } else {
+                    Token::Less
+                }
+            }
+
+            Some('>') => {
+                self.advance();
+                if self.current() == Some('=') {
+                    self.advance();
+                    Token::GreaterEqual
+                } else {
+                    Token::Greater
+                }
+            }
+
             Some('\'') => {
                 self.advance();
 
@@ -264,6 +310,10 @@ impl Lexer {
                     Token::Type(Type::Char)
                 } else if name == "str" {
                     Token::Type(Type::Str)
+                } else if name == "bool" {
+                    Token::Type(Type::Bool)
+                } else if name == "true" || name == "false" {
+                    Token::Value(Value::Bool(name.parse().unwrap()))
                 } else {
                     Token::Name(name)
                 }
@@ -355,7 +405,16 @@ impl Parser {
 
         loop {
             let op = match self.current() {
-                Token::Plus | Token::Minus | Token::Star | Token::Slash => {
+                Token::Plus
+                | Token::Minus
+                | Token::Star
+                | Token::Slash
+                | Token::Less
+                | Token::LessEqual
+                | Token::Greater
+                | Token::GreaterEqual
+                | Token::EqualEqual
+                | Token::NotEqual => {
                     let op = self.current();
                     self.advance();
                     op
@@ -400,6 +459,7 @@ impl fmt::Display for Value {
             Value::Int(value) => write!(f, "{}", value),
             Value::Char(value) => write!(f, "{}", value),
             Value::Str(_) => unreachable!(),
+            Value::Bool(value) => write!(f, "{}", value),
         }
     }
 }
@@ -484,6 +544,7 @@ fn compile(program: &Program) -> String {
                     Type::Int => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
                     Type::Char => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
                     Type::Str => assembly.push_str(&format!("    mov [rbp - {}], rax\n", off)),
+                    Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
                 }
             }
         }
@@ -509,6 +570,9 @@ fn compile_expression(
             let i = strings.iter().position(|s| s == bytes).unwrap();
             assembly.push_str(&format!("    lea rax, [rel str_{}]\n", i));
         }
+        Expression::Value(Value::Bool(b)) => {
+            assembly.push_str(&format!("    mov rax, {}\n", if *b { 1 } else { 0 }));
+        }
         Expression::Value(v) => {
             assembly.push_str(&format!("    mov rax, {}\n", v));
         }
@@ -523,6 +587,9 @@ fn compile_expression(
                     assembly.push_str(&format!("    movzx rax, byte [rbp - {}]\n", offset))
                 }
                 Type::Str => assembly.push_str(&format!("    mov rax, [rbp - {}]\n", offset)),
+                Type::Bool => {
+                    assembly.push_str(&format!("    movzx rax, byte [rbp - {}]\n", offset))
+                }
             }
         }
 
@@ -540,6 +607,37 @@ fn compile_expression(
                 Token::Slash => {
                     assembly.push_str("    cqo\n");
                     assembly.push_str("    idiv rcx\n");
+                }
+
+                Token::EqualEqual => {
+                    assembly.push_str("    cmp rax, rcx\n");
+                    assembly.push_str("    sete al\n");
+                    assembly.push_str("    movzx rax, al\n");
+                }
+                Token::NotEqual => {
+                    assembly.push_str("    cmp rax, rcx\n");
+                    assembly.push_str("    setne al\n");
+                    assembly.push_str("    movzx rax, al\n");
+                }
+                Token::Less => {
+                    assembly.push_str("    cmp rax, rcx\n");
+                    assembly.push_str("    setl al\n");
+                    assembly.push_str("    movzx rax, al\n");
+                }
+                Token::LessEqual => {
+                    assembly.push_str("    cmp rax, rcx\n");
+                    assembly.push_str("    setle al\n");
+                    assembly.push_str("    movzx rax, al\n");
+                }
+                Token::Greater => {
+                    assembly.push_str("    cmp rax, rcx\n");
+                    assembly.push_str("    setg al\n");
+                    assembly.push_str("    movzx rax, al\n");
+                }
+                Token::GreaterEqual => {
+                    assembly.push_str("    cmp rax, rcx\n");
+                    assembly.push_str("    setge al\n");
+                    assembly.push_str("    movzx rax, al\n");
                 }
 
                 _ => unreachable!("non-operator token"),
