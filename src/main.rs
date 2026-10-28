@@ -29,6 +29,12 @@ enum Token {
     EqualEqual,
     NotEqual,
 
+    If,
+    Else,
+
+    LBrace,
+    RBrace,
+
     Semicolon,
     Eof,
 }
@@ -39,6 +45,11 @@ enum Statement {
         typee: Type,
         name: String,
         value: Expression,
+    },
+    If {
+        condition: Expression,
+        body: Vec<Statement>,
+        else_body: Option<Vec<Statement>>,
     },
 }
 
@@ -174,6 +185,16 @@ impl Lexer {
                 } else {
                     Token::Greater
                 }
+            }
+
+            Some('{') => {
+                self.advance();
+                Token::LBrace
+            }
+
+            Some('}') => {
+                self.advance();
+                Token::RBrace
             }
 
             Some('\'') => {
@@ -314,6 +335,10 @@ impl Lexer {
                     Token::Type(Type::Bool)
                 } else if name == "true" || name == "false" {
                     Token::Value(Value::Bool(name.parse().unwrap()))
+                } else if name == "if" {
+                    Token::If
+                } else if name == "else" {
+                    Token::Else
                 } else {
                     Token::Name(name)
                 }
@@ -356,6 +381,13 @@ impl Parser {
         self.position += 1;
     }
     fn parse_statement(&mut self) -> Statement {
+        match self.current() {
+            Token::Type(_) => self.parse_decleration(),
+            Token::If => self.parse_if(),
+            other => panic!("expected statement found {:?}", other),
+        }
+    }
+    fn parse_decleration(&mut self) -> Statement {
         let typee = match self.current() {
             Token::Type(typee) => {
                 self.advance();
@@ -387,6 +419,50 @@ impl Parser {
         }
 
         Statement::Decleration { typee, name, value }
+    }
+    fn parse_if(&mut self) -> Statement {
+        self.advance();
+
+        let condition = self.parse_expression();
+
+        match self.current() {
+            Token::LBrace => self.advance(),
+            _ => panic!("expected '{{'"),
+        }
+
+        let mut body = Vec::new();
+
+        while self.current() != Token::RBrace {
+            body.push(self.parse_statement());
+        }
+
+        self.advance();
+
+        let else_body = if self.current() == Token::Else {
+            self.advance();
+
+            match self.current() {
+                Token::LBrace => self.advance(),
+                _ => panic!("expected '{{'"),
+            }
+            let mut body = Vec::new();
+
+            while self.current() != Token::RBrace {
+                body.push(self.parse_statement());
+            }
+
+            self.advance();
+
+            Some(body)
+        } else {
+            None
+        };
+
+        Statement::If {
+            condition,
+            body,
+            else_body,
+        }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
@@ -547,6 +623,11 @@ fn compile(program: &Program) -> String {
                     Type::Bool => assembly.push_str(&format!("    mov [rbp - {}], al\n", off)),
                 }
             }
+            Statement::If {
+                condition,
+                body,
+                else_body,
+            } => todo!(),
         }
     }
 
