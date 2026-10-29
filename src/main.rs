@@ -35,6 +35,8 @@ enum Token {
     LBrace,
     RBrace,
 
+    Print,
+
     Semicolon,
     Eof,
 }
@@ -50,6 +52,10 @@ enum Statement {
         condition: Expression,
         body: Vec<Statement>,
         else_body: Option<Vec<Statement>>,
+    },
+    // only for testing i will remove this later
+    Print {
+        value: Expression,
     },
 }
 
@@ -339,6 +345,8 @@ impl Lexer {
                     Token::If
                 } else if name == "else" {
                     Token::Else
+                } else if name == "print" {
+                    Token::Print
                 } else {
                     Token::Name(name)
                 }
@@ -384,6 +392,7 @@ impl Parser {
         match self.current() {
             Token::Type(_) => self.parse_decleration(),
             Token::If => self.parse_if(),
+            Token::Print => self.parse_print(),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -463,6 +472,18 @@ impl Parser {
             body,
             else_body,
         }
+    }
+    fn parse_print(&mut self) -> Statement {
+        self.advance();
+
+        let value = self.parse_expression();
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Print { value }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
@@ -628,6 +649,11 @@ fn compile(program: &Program) -> String {
                 body,
                 else_body,
             } => todo!(),
+            Statement::Print { value } => {
+                compile_expression(&mut assembly, value, &variables, &strings);
+                assembly.push_str("    mov rsi, rax\n");
+                assembly.push_str("    call print\n");
+            }
         }
     }
 
@@ -636,6 +662,19 @@ fn compile(program: &Program) -> String {
     assembly.push_str("    mov rax, 60\n");
     assembly.push_str("    xor rdi, rdi\n");
     assembly.push_str("    syscall\n");
+
+    assembly.push_str("print:\n");
+    assembly.push_str(".loop:\n");
+    assembly.push_str("    cmp byte [rsi], 0\n");
+    assembly.push_str("    je .done\n");
+    assembly.push_str("    mov rdx, 1\n");
+    assembly.push_str("    mov rax, 1\n");
+    assembly.push_str("    mov rdi, 1\n");
+    assembly.push_str("    syscall\n");
+    assembly.push_str("    inc rsi\n");
+    assembly.push_str("    jmp .loop\n");
+    assembly.push_str(".done:\n");
+    assembly.push_str("    ret\n");
 
     assembly
 }
@@ -731,14 +770,19 @@ fn collect_strings(program: &Program) -> Vec<Vec<u8>> {
     let mut strings = Vec::new();
 
     for statement in &program.statements {
-        if let Statement::Decleration {
-            value: Expression::Value(Value::Str(bytes)),
-            ..
-        } = statement
-        {
-            if !strings.contains(bytes) {
-                strings.push(bytes.clone());
+        match statement {
+            Statement::Decleration {
+                value: Expression::Value(Value::Str(bytes)),
+                ..
             }
+            | Statement::Print {
+                value: Expression::Value(Value::Str(bytes)),
+            } => {
+                if !strings.contains(bytes) {
+                    strings.push(bytes.clone());
+                }
+            }
+            _ => {}
         }
     }
 
