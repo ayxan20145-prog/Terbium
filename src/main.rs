@@ -42,6 +42,7 @@ enum Token {
     RBrace,
 
     Print,
+    Push,
 
     Semicolon,
     Eof,
@@ -61,6 +62,9 @@ enum Statement {
     },
     // only for testing i will remove this later
     Print {
+        value: Expression,
+    },
+    Push {
         value: Expression,
     },
 }
@@ -353,6 +357,8 @@ impl Lexer {
                     Token::Else
                 } else if name == "print" {
                     Token::Print
+                } else if name == "push" {
+                    Token::Push
                 } else {
                     Token::Name(name)
                 }
@@ -399,6 +405,7 @@ impl Parser {
             Token::Type(_) => self.parse_decleration(),
             Token::If => self.parse_if(),
             Token::Print => self.parse_print(),
+            Token::Push => self.parse_push(),
             other => panic!("expected statement found {:?}", other),
         }
     }
@@ -490,6 +497,18 @@ impl Parser {
         }
 
         Statement::Print { value }
+    }
+    fn parse_push(&mut self) -> Statement {
+        self.advance();
+
+        let value = self.parse_expression();
+
+        match self.current() {
+            Token::Semicolon => self.advance(),
+            _ => panic!("expected ';'"),
+        }
+
+        Statement::Push { value }
     }
     fn parse_expression(&mut self) -> Expression {
         let mut left = match self.current() {
@@ -661,6 +680,10 @@ fn compile(program: &Program) -> String {
                 assembly.push_str("    mov rsi, rax\n");
                 assembly.push_str("    call print\n");
             }
+            Statement::Push { value } => {
+                compile_expression(&mut assembly, value, &variables, &strings);
+                assembly.push_str("    push rax\n");
+            }
         }
     }
 
@@ -783,6 +806,9 @@ fn collect_strings(program: &Program) -> Vec<Vec<u8>> {
                 ..
             }
             | Statement::Print {
+                value: Expression::Value(Value::Str(bytes)),
+            }
+            | Statement::Push {
                 value: Expression::Value(Value::Str(bytes)),
             } => {
                 if !strings.contains(bytes) {
